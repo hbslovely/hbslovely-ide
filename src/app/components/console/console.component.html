@@ -1,1 +1,8 @@
-<p>console works!</p>
+<div class="console-container">
+  <div class="console-output" #consoleOutput>
+    <div *ngFor="let log of logs" class="log-entry" [class]="log.type">
+      <span class="timestamp">{{ log.timestamp | date:'HH:mm:ss' }}</span>
+      <span class="message">{{ log.message }}</span>
+    </div>
+  </div>
+</div>

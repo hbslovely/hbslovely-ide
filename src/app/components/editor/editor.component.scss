@@ -1,1 +1,140 @@
+.editor-wrapper {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: #1e1e1e;
+}
 
+.editor-tabs {
+  background-color: #252526;
+
+  ::ng-deep {
+    .mat-mdc-tab-header {
+      border-bottom: none;
+      background-color: #1e1e1e;
+    }
+
+    .mat-mdc-tab-labels {
+      background-color: #252526;
+    }
+
+    .mat-mdc-tab {
+      height: 35px;
+      min-height: 35px;
+      padding: 0;
+      background-color: #2d2d2d;
+      border-right: 1px solid #1e1e1e;
+      opacity: 0.7;
+      min-width: 150px;
+      max-width: 200px;
+
+      &.mat-mdc-tab-active {
+        opacity: 1;
+        background-color: #1e1e1e;
+
+        .tab-label {
+          color: #ffffff;
+        }
+
+        .close-button {
+          opacity: 1;
+        }
+      }
+
+      &:not(.mat-mdc-tab-active):hover {
+        background-color: #2a2a2a;
+
+        .close-button {
+          opacity: 1;
+        }
+      }
+    }
+
+    .mat-mdc-tab-body-wrapper {
+      display: none;
+    }
+
+    .mdc-tab__content {
+      height: 100%;
+    }
+
+    .mdc-tab-indicator {
+      display: none;
+    }
+  }
+}
+
+.tab-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #969696;
+  padding: 0 8px;
+  width: 100%;
+  justify-content: space-between;
+
+  .tab-content {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+
+    .file-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+    }
+
+    .file-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
+  &.dirty {
+    .file-name::after {
+      content: '•';
+      margin-left: 6px;
+      color: #fff;
+    }
+  }
+}
+
+.close-button {
+  width: 20px;
+  height: 20px;
+  line-height: 20px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  padding: 2px;
+  min-width: unset;
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    line-height: 16px;
+  }
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+  }
+}
+
+.editor-container {
+  flex: 1;
+  overflow: hidden;
+}
+
+::ng-deep {
+  @font-face {
+    font-family: "codicon";
+    src: url("/assets/monaco/codicon.ttf") format("truetype");
+  }
+}

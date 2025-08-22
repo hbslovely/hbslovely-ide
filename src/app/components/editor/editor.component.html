@@ -1,1 +1,27 @@
-<p>editor works!</p>
+<div class="editor-wrapper">
+  <!-- Tabs -->
+  <mat-tab-group
+    [selectedIndex]="selectedTabIndex"
+    (selectedIndexChange)="onTabChange($event)"
+    class="editor-tabs"
+  >
+    <mat-tab *ngFor="let file of openedFiles; let i = index">
+      <ng-template mat-tab-label>
+        <div class="tab-label" [class.dirty]="file.isDirty">
+          <div class="tab-content">
+            <mat-icon class="file-icon" [class]="getFileIconClass(file.name)">
+              {{ getFileIcon(file.name) }}
+            </mat-icon>
+            <span class="file-name">{{ file.name }}</span>
+          </div>
+          <button mat-icon-button class="close-button" (click)="closeTab(file.id, $event)">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+      </ng-template>
+    </mat-tab>
+  </mat-tab-group>
+
+  <!-- Editor Container -->
+  <div #editorContainer class="editor-container"></div>
+</div>

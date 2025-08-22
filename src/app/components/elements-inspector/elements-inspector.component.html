@@ -1,1 +1,57 @@
-<p>elements-inspector works!</p>
+<div class="elements-inspector">
+  <!-- Search and Refresh Bar -->
+  <div class="toolbar">
+    <div class="search-box">
+      <input 
+        type="text" 
+        [(ngModel)]="searchText" 
+        (ngModelChange)="filterElements()"
+        placeholder="Search elements..."
+      >
+    </div>
+    <button class="refresh-button" (click)="refresh()">
+      <mat-icon>refresh</mat-icon>
+    </button>
+  </div>
+
+  <!-- Elements Tree -->
+  <div class="elements-tree">
+    <div 
+      *ngFor="let element of filteredElements" 
+      class="element-node"
+      [class.selected]="selectedElement === element"
+      (click)="selectElement(element)"
+    >
+      <div class="element-header">
+        <span class="tag">&lt;{{ element.tag }}&gt;</span>
+        <span class="attributes" *ngIf="element.attributes['class']">
+          .{{ element.attributes['class'] }}
+        </span>
+        <span class="attributes" *ngIf="element.attributes['id']">
+          #{{ element.attributes['id'] }}
+        </span>
+      </div>
+
+      <!-- Element Details -->
+      <div class="element-details" *ngIf="selectedElement === element">
+        <!-- Attributes -->
+        <div class="section">
+          <h3>Attributes</h3>
+          <div class="attribute" *ngFor="let attr of getAttributeEntries(element)">
+            <span class="key">{{ attr[0] }}</span>
+            <span class="value">{{ attr[1] }}</span>
+          </div>
+        </div>
+
+        <!-- Computed Styles -->
+        <div class="section">
+          <h3>Computed Styles</h3>
+          <div class="style" *ngFor="let style of getComputedStyles(element)">
+            <span class="property">{{ style.property }}:</span>
+            <span class="value">{{ style.value }};</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

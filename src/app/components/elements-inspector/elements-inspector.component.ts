@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { MatIconModule } from '@angular/material/icon';
 
 interface ElementNode {
   tag: string;
@@ -13,7 +14,7 @@ interface ElementNode {
   templateUrl: './elements-inspector.component.html',
   styleUrls: ['./elements-inspector.component.scss'],
   standalone: true,
-  imports: [CommonModule, FormsModule]
+  imports: [CommonModule, FormsModule, MatIconModule]
 })
 export class ElementsInspectorComponent {
   elements: ElementNode[] = [];

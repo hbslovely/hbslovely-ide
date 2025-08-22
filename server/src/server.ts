@@ -6,14 +6,20 @@ import { v4 as uuidv4 } from 'uuid';
 import { spawn } from 'child_process';
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 4001;
+const isProd = process.env.NODE_ENV === 'production';
 
 // Enable CORS
 app.use(cors());
 app.use(express.json());
 
-// Project storage path
-const PROJECTS_DIR = path.join(__dirname, '../projects');
+// API Routes prefix for production
+const apiRouter = express.Router();
+
+// Project storage path - use different paths for dev and prod
+const PROJECTS_DIR = isProd 
+  ? path.join('/tmp', 'web-ide', 'projects')  // Use /tmp in production (Vercel)
+  : path.join(__dirname, '../projects');
 
 // Ensure projects directory exists
 async function ensureProjectsDir() {
@@ -52,12 +58,11 @@ function runCommand(command: string, args: string[], cwd: string): Promise<void>
 }
 
 // Get project by ID
-app.get('/project/:id', async (req, res) => {
-  console.log('Navigate to /project/:id');
+apiRouter.get('/solutions/:id', async (req, res) => {
   try {
     const projectId = req.params.id;
     const projectPath = path.join(PROJECTS_DIR, projectId);
-
+    
     // Check if project exists
     try {
       await fs.access(projectPath);
@@ -84,7 +89,7 @@ app.get('/project/:id', async (req, res) => {
 });
 
 // Create new project
-app.post('/project', async (req, res) => {
+apiRouter.post('/solutions', async (req, res) => {
   try {
     const { name, description, template } = req.body;
     const projectId = uuidv4();
@@ -151,7 +156,7 @@ app.post('/project', async (req, res) => {
 });
 
 // Update project file
-app.put('/project/:id/file', async (req, res) => {
+apiRouter.put('/solutions/:id/files', async (req, res) => {
   try {
     const { id } = req.params;
     const { path: filePath, content } = req.body;
@@ -183,7 +188,7 @@ app.put('/project/:id/file', async (req, res) => {
 });
 
 // Get project file
-app.get('/project/:id/file', async (req, res) => {
+apiRouter.get('/solutions/:id/files', async (req, res) => {
   try {
     const { id } = req.params;
     const { path: filePath } = req.query;
@@ -206,15 +211,15 @@ app.get('/project/:id/file', async (req, res) => {
 });
 
 // Serve project
-app.post('/project/:id/serve', async (req, res) => {
+apiRouter.post('/solutions/:id/serve', async (req, res) => {
   try {
     const { id } = req.params;
     const projectPath = path.join(PROJECTS_DIR, id);
-
+    
     // Run npm start
     const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
     await runCommand(npmCmd, ['start'], projectPath);
-
+    
     res.json({ success: true });
   } catch (error) {
     console.error('Error serving project:', error);
@@ -223,15 +228,15 @@ app.post('/project/:id/serve', async (req, res) => {
 });
 
 // Build project
-app.post('/project/:id/build', async (req, res) => {
+apiRouter.post('/solutions/:id/build', async (req, res) => {
   try {
     const { id } = req.params;
     const projectPath = path.join(PROJECTS_DIR, id);
-
+    
     // Run npm build
     const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
     await runCommand(npmCmd, ['run', 'build'], projectPath);
-
+    
     res.json({ success: true });
   } catch (error) {
     console.error('Error building project:', error);
@@ -273,6 +278,13 @@ async function getProjectFiles(dirPath: string, basePath: string = ''): Promise<
   );
 
   return files.filter(Boolean);
+}
+
+// Mount API routes
+if (isProd) {
+  app.use('/api', apiRouter);
+} else {
+  app.use('/', apiRouter);
 }
 
 app.listen(PORT, () => {

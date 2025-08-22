@@ -13,63 +13,8 @@ interface ConsoleLog {
   selector: 'app-console',
   standalone: true,
   imports: [CommonModule],
-  template: `
-    <div class="console-container">
-      <div class="console-output" #consoleOutput>
-        <div *ngFor="let log of logs" class="log-entry" [class]="log.type">
-          <span class="timestamp">{{ log.timestamp | date:'HH:mm:ss' }}</span>
-          <span class="message">{{ log.message }}</span>
-        </div>
-      </div>
-    </div>
-  `,
-  styles: [`
-    .console-container {
-      height: 100%;
-      background-color: #1e1e1e;
-      color: #d4d4d4;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 12px;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .console-output {
-      flex: 1;
-      overflow-y: auto;
-      padding: 8px;
-    }
-
-    .log-entry {
-      display: flex;
-      gap: 8px;
-      padding: 2px 0;
-      white-space: pre-wrap;
-      word-break: break-all;
-    }
-
-    .timestamp {
-      color: #666;
-      user-select: none;
-    }
-
-    .message {
-      flex: 1;
-    }
-
-    .info {
-      color: #9cdcfe;
-    }
-
-    .error {
-      color: #f14c4c;
-    }
-
-    .warning {
-      color: #ce9178;
-    }
-  `]
+  templateUrl: './console.component.html',
+  styleUrls: ['./console.component.scss']
 })
 export class ConsoleComponent implements OnInit, OnDestroy {
   @ViewChild('consoleOutput') consoleOutput!: ElementRef;

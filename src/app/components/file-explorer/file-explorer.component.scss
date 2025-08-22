@@ -1,1 +1,86 @@
+.file-explorer {
+  height: 100%;
+  background-color: #252526;
+  color: #d4d4d4;
+  overflow: auto;
+}
 
+.mat-tree {
+  background: transparent;
+}
+
+.mat-tree-node {
+  min-height: 32px;
+  cursor: pointer;
+  color: #d4d4d4;
+  position: relative;
+
+  &:hover {
+    background-color: #2a2d2e;
+  }
+
+  &.active {
+    background-color: #37373d;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background-color: #007acc;
+    }
+
+    .node-name {
+      color: #ffffff;
+    }
+  }
+
+  .mat-icon-button {
+    width: 24px;
+    height: 24px;
+    line-height: 24px;
+    color: #d4d4d4;
+  }
+
+  .mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+    color: #d4d4d4;
+  }
+}
+
+.node-name {
+  font-size: 13px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #cccccc;
+  user-select: none;
+}
+
+/* File type icons */
+.icon-ts {
+  color: #007acc !important;
+}
+
+.icon-js {
+  color: #f7df1e !important;
+}
+
+.icon-html {
+  color: #e44d26 !important;
+}
+
+.icon-css, .icon-scss {
+  color: #264de4 !important;
+}
+
+.icon-json {
+  color: #fbc02d !important;
+}
+
+.icon-md {
+  color: #42a5f5 !important;
+}

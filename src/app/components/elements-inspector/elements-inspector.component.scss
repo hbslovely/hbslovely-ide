@@ -1,1 +1,136 @@
+.elements-inspector {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+  font-family: 'JetBrains Mono', monospace;
+}
 
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background-color: #252526;
+  border-bottom: 1px solid #333;
+}
+
+.search-box {
+  flex: 1;
+
+  input {
+    width: 100%;
+    height: 28px;
+    background-color: #3c3c3c;
+    border: 1px solid #3c3c3c;
+    border-radius: 4px;
+    color: #d4d4d4;
+    padding: 0 8px;
+    font-size: 12px;
+    font-family: inherit;
+
+    &:focus {
+      outline: none;
+      border-color: #007acc;
+    }
+
+    &::placeholder {
+      color: #808080;
+    }
+  }
+}
+
+.refresh-button {
+  background: none;
+  border: none;
+  color: #d4d4d4;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+}
+
+.elements-tree {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.element-node {
+  font-size: 12px;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+
+  &:hover {
+    background-color: #2a2d2e;
+  }
+
+  &.selected {
+    background-color: #37373d;
+  }
+}
+
+.element-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tag {
+  color: #569cd6;
+}
+
+.attributes {
+  color: #9cdcfe;
+}
+
+.element-details {
+  margin-top: 8px;
+  padding: 8px;
+  background-color: #252526;
+  border-radius: 4px;
+}
+
+.section {
+  margin-bottom: 16px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  h3 {
+    font-size: 12px;
+    font-weight: 500;
+    color: #d4d4d4;
+    margin: 0 0 8px;
+  }
+}
+
+.attribute, .style {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 4px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.key, .property {
+  color: #9cdcfe;
+}
+
+.value {
+  color: #ce9178;
+}

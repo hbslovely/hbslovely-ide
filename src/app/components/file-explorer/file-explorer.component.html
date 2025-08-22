@@ -1,1 +1,21 @@
-<p>file-explorer works!</p>
+<div class="file-explorer">
+  <mat-tree [dataSource]="dataSource" [treeControl]="treeControl">
+    <!-- Directory node -->
+    <mat-tree-node *matTreeNodeDef="let node; when: hasChild" matTreeNodePadding>
+      <button mat-icon-button matTreeNodeToggle>
+        <mat-icon>
+          {{ treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right' }}
+        </mat-icon>
+      </button>
+      <mat-icon>folder{{ treeControl.isExpanded(node) ? '_open' : '' }}</mat-icon>
+      <span class="node-name">{{ node.name }}</span>
+    </mat-tree-node>
+
+    <!-- File node -->
+    <mat-tree-node *matTreeNodeDef="let node" matTreeNodePadding [class.active]="node.isActive">
+      <button mat-icon-button disabled></button>
+      <mat-icon [class]="getFileIconClass(node.name)">{{ getFileIcon(node.name) }}</mat-icon>
+      <span class="node-name" (click)="openFile(node)">{{ node.name }}</span>
+    </mat-tree-node>
+  </mat-tree>
+</div>
