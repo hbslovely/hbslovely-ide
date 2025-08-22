@@ -1,60 +1,64 @@
 import { Component, OnInit, OnDestroy, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { EditorService } from '../../services/editor.service';
 import { FileService } from '../../services/file.service';
+import { EditorService } from '../../services/editor.service';
 import { FileNode } from '../../models/file.model';
 import { Subscription } from 'rxjs';
-import { editor as monacoEditor } from 'monaco-editor';
-import loader from '@monaco-editor/loader';
 
 @Component({
   selector: 'app-editor',
-  templateUrl: './editor.component.html',
-  styleUrls: ['./editor.component.scss'],
   standalone: true,
-  imports: [CommonModule]
+  imports: [CommonModule],
+  template: `
+    <div #editorContainer class="editor-container"></div>
+  `,
+  styles: [`
+    .editor-container {
+      width: 100%;
+      height: 100%;
+    }
+  `]
 })
 export class EditorComponent implements OnInit, OnDestroy, AfterViewInit {
   @ViewChild('editorContainer', { static: true }) editorContainer!: ElementRef;
-
-  openFiles: FileNode[] = [];
-  activeFileIndex: number = -1;
-  private subscription: Subscription = new Subscription();
+  private editorSubscription?: Subscription;
+  private initialized = false;
 
   constructor(
-    private editorService: EditorService,
-    private fileService: FileService
+    private fileService: FileService,
+    private editorService: EditorService
   ) {}
 
   ngOnInit() {
-    this.subscription.add(
-      this.fileService.getEditorState().subscribe(state => {
-        this.openFiles = state.openFiles;
-        this.activeFileIndex = state.activeFileIndex;
-        
-        if (state.currentFile && state.currentFile !== this.openFiles[this.activeFileIndex]) {
-          this.loadFile(state.currentFile);
-        }
-      })
-    );
+    this.editorSubscription = this.fileService.getEditorState().subscribe(state => {
+      if (state.currentFile && this.initialized) {
+        this.openFile(state.currentFile);
+      }
+    });
   }
 
   async ngAfterViewInit() {
-    await loader.init();
-    this.editorService.initializeEditor(this.editorContainer.nativeElement);
+    await this.editorService.initializeEditor(this.editorContainer.nativeElement);
+    this.initialized = true;
+
+    // Check if there's a current file to open
+    const state = await this.fileService.getEditorState().value;
+    if (state.currentFile) {
+      await this.openFile(state.currentFile);
+    }
   }
 
   ngOnDestroy() {
-    this.subscription.unsubscribe();
+    if (this.editorSubscription) {
+      this.editorSubscription.unsubscribe();
+    }
     this.editorService.dispose();
   }
 
-  private loadFile(file: FileNode) {
-    this.editorService.setContent(file.content || '');
-    this.editorService.setLanguage(file);
-  }
-
-  closeFile(index: number) {
-    this.fileService.closeFile(index);
+  private async openFile(file: FileNode) {
+    if (file.content !== undefined) {
+      this.editorService.setContent(file.content);
+      this.editorService.setLanguage(file.path);
+    }
   }
 }

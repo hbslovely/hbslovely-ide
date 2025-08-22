@@ -12,10 +12,11 @@
     "moduleResolution": "node"
   },
   "include": [
-    "src/**/*"
+    "src/**/*",
+    "../node_modules/@types/node/globals.d.ts"
   ],
   "exclude": [
     "node_modules",
     "dist"
   ]
-} 
+}

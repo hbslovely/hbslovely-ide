@@ -1,79 +1,255 @@
 import express from 'express';
-import { Server as WebSocketServer } from 'ws';
-import { createServer } from 'http';
-import { spawn } from 'child_process';
-import { join } from 'path';
 import cors from 'cors';
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from 'fs';
+import { WebSocketServer, WebSocket } from 'ws';
+import { spawn, exec } from 'child_process';
+import path from 'path';
+import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
+import os from 'os';
 
+// Constants
+const DEFAULT_PORT = 4000;
+const TEMP_DIR = path.join(os.tmpdir(), 'web-ide-temp');
+const PROJECTS_DIR = path.join(__dirname, '../projects');
+
+// Initialize express app
 const app = express();
-const server = createServer(app);
-const wss = new WebSocketServer({ server });
 
-const PORT = process.env.PORT || 4000;
-const PROJECTS_DIR = join(__dirname, '../projects');
-
-// Ensure projects directory exists
-if (!existsSync(PROJECTS_DIR)) {
-  mkdirSync(PROJECTS_DIR, { recursive: true });
-}
-
+// Middleware
 app.use(cors());
 app.use(express.json());
 
-// WebSocket connections store
-const connections = new Map<string, WebSocket>();
+// Create necessary directories
+[TEMP_DIR, PROJECTS_DIR].forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+});
 
-wss.on('connection', (ws: WebSocket) => {
-  let projectId: string;
+// WebSocket server
+const wss = new WebSocketServer({ noServer: true });
 
-  ws.on('message', (message: string) => {
-    const data = JSON.parse(message);
-    if (data.type === 'init') {
-      projectId = data.projectId;
-      connections.set(projectId, ws);
-    }
-  });
+// Store WebSocket connections
+const clients = new Map<string, WebSocket>();
+
+// Handle WebSocket connections
+wss.on('connection', (ws: WebSocket, projectId: string) => {
+  clients.set(projectId, ws);
 
   ws.on('close', () => {
-    if (projectId) {
-      connections.delete(projectId);
-    }
+    clients.delete(projectId);
   });
 });
 
-// Helper function to send logs to WebSocket clients
-function sendLog(projectId: string, type: 'stdout' | 'stderr' | 'info' | 'error', data: string) {
-  const ws = connections.get(projectId);
+// Helper function to send log message
+function sendLog(ws: WebSocket | undefined, type: 'stdout' | 'stderr' | 'info' | 'error', data: string) {
   if (ws) {
-    ws.send(JSON.stringify({ type, data }));
+    ws.send(JSON.stringify({
+      type,
+      data,
+      timestamp: new Date()
+    }));
   }
 }
 
-// Helper function to read directory recursively
-function readDirRecursive(dir: string, baseDir: string = dir): any[] {
-  const files: any[] = [];
-  const entries = readdirSync(dir);
+// Helper function to check if a command exists
+function commandExists(command: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const isWindows = process?.platform === 'win32';
+    const checkCommand = isWindows ? `where ${command}` : `which ${command}`;
+    
+    exec(checkCommand, (error) => {
+      resolve(!error);
+    });
+  });
+}
+
+// Helper function to get environment variables
+function getEnv(): NodeJS.ProcessEnv {
+  return {
+    ...process?.env,
+    NODE_ENV: 'development',
+    FORCE_COLOR: 'true'
+  };
+}
+
+// Helper function to run a command and stream output
+async function runCommand(command: string, args: string[], cwd: string, ws?: WebSocket): Promise<void> {
+  return new Promise((resolve, reject) => {
+    sendLog(ws, 'info', `Running command: ${command} ${args.join(' ')}`);
+    
+    const childProcess = spawn(command, args, {
+      cwd,
+      shell: true,
+      env: getEnv()
+    });
+
+    childProcess.stdout?.on('data', (data) => {
+      const output = data.toString();
+      console.log(output);
+      sendLog(ws, 'stdout', output);
+    });
+
+    childProcess.stderr?.on('data', (data) => {
+      const output = data.toString();
+      console.error(output);
+      sendLog(ws, 'stderr', output);
+    });
+
+    childProcess.on('error', (error) => {
+      console.error('Process error:', error);
+      sendLog(ws, 'error', `Process error: ${error.message}`);
+      reject(error);
+    });
+
+    childProcess.on('close', (code) => {
+      if (code === 0) {
+        sendLog(ws, 'info', `Command completed successfully`);
+        resolve();
+      } else {
+        const error = new Error(`Process exited with code ${code}`);
+        console.error(error.message);
+        sendLog(ws, 'error', error.message);
+        reject(error);
+      }
+    });
+  });
+}
+
+// Helper function to copy directory recursively
+async function copyDir(src: string, dest: string): Promise<void> {
+  await fs.promises.mkdir(dest, { recursive: true });
+  const entries = await fs.promises.readdir(src, { withFileTypes: true });
 
   for (const entry of entries) {
-    const fullPath = join(dir, entry);
-    const relativePath = fullPath.replace(baseDir, '');
-    const stat = statSync(fullPath);
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
 
-    if (stat.isDirectory()) {
+    if (entry.isDirectory()) {
+      await copyDir(srcPath, destPath);
+    } else {
+      await fs.promises.copyFile(srcPath, destPath);
+    }
+  }
+}
+
+// Helper function to remove directory recursively
+async function removeDir(dir: string): Promise<void> {
+  try {
+    await fs.promises.rm(dir, { recursive: true, force: true });
+  } catch (error) {
+    console.error(`Error removing directory ${dir}:`, error);
+  }
+}
+
+// API Routes
+app.post('/api/projects', async (req, res) => {
+  const tempProjectDir = path.join(TEMP_DIR, uuidv4());
+  const { projectId, name, framework } = req.body;
+  const finalProjectDir = path.join(PROJECTS_DIR, projectId);
+  const ws = clients.get(projectId);
+
+  try {
+    // Create temporary project directory
+    fs.mkdirSync(tempProjectDir, { recursive: true });
+    sendLog(ws, 'info', `Created temporary directory: ${tempProjectDir}`);
+
+    // Check if Angular CLI is installed
+    if (framework === 'angular') {
+      const hasNgCli = await commandExists('ng');
+      if (!hasNgCli) {
+        sendLog(ws, 'info', 'Installing Angular CLI globally...');
+        try {
+          await runCommand('npm', ['install', '-g', '@angular/cli'], tempProjectDir, ws);
+          sendLog(ws, 'info', 'Angular CLI installed successfully');
+        } catch (error) {
+          console.error('Failed to install Angular CLI:', error);
+          sendLog(ws, 'error', 'Failed to install Angular CLI. Will try to use npx instead.');
+        }
+      }
+    }
+
+    // Initialize project based on framework
+    if (framework === 'angular') {
+      // Try using global ng first, fallback to npx
+      try {
+        await runCommand('ng', ['new', '.', '--routing', '--style=scss', '--skip-git', '--defaults'], tempProjectDir, ws);
+      } catch (error) {
+        console.error('Failed to create Angular project with global CLI:', error);
+        sendLog(ws, 'info', 'Trying with npx @angular/cli...');
+        await runCommand('npx', ['-y', '@angular/cli@17', 'new', '.', '--routing', '--style=scss', '--skip-git', '--defaults'], tempProjectDir, ws);
+      }
+    } else {
+      await runCommand('npx', ['create-react-app', '.'], tempProjectDir, ws);
+    }
+
+    // Create final project directory
+    if (fs.existsSync(finalProjectDir)) {
+      await removeDir(finalProjectDir);
+    }
+    
+    // Copy project from temp to final directory
+    sendLog(ws, 'info', 'Copying project files...');
+    await copyDir(tempProjectDir, finalProjectDir);
+
+    // Clean up temp directory
+    await removeDir(tempProjectDir);
+    sendLog(ws, 'info', 'Temporary files cleaned up');
+
+    // Read project files
+    sendLog(ws, 'info', 'Reading project files...');
+    const files = readDirRecursive(finalProjectDir);
+    sendLog(ws, 'info', 'Project creation completed successfully');
+
+    res.json(files);
+  } catch (error) {
+    console.error('Error creating project:', error);
+    // Clean up on error
+    await removeDir(tempProjectDir);
+    if (fs.existsSync(finalProjectDir)) {
+      await removeDir(finalProjectDir);
+    }
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to create project' });
+  }
+});
+
+app.post('/api/projects/:projectId/execute', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { command } = req.body;
+    const projectDir = path.join(PROJECTS_DIR, projectId);
+    const ws = clients.get(projectId);
+
+    await runCommand('npm', command.split(' '), projectDir, ws);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error executing command:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to execute command' });
+  }
+});
+
+// Helper function to read directory recursively
+function readDirRecursive(dir: string): any[] {
+  const files: any[] = [];
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    
+    if (entry.isDirectory()) {
       files.push({
-        name: entry,
+        name: entry.name,
         type: 'directory',
-        path: relativePath,
-        children: readDirRecursive(fullPath, baseDir)
+        path: fullPath,
+        children: readDirRecursive(fullPath)
       });
     } else {
       files.push({
-        name: entry,
+        name: entry.name,
         type: 'file',
-        path: relativePath,
-        content: readFileSync(fullPath, 'utf-8')
+        path: fullPath,
+        content: fs.readFileSync(fullPath, 'utf-8')
       });
     }
   }
@@ -81,212 +257,30 @@ function readDirRecursive(dir: string, baseDir: string = dir): any[] {
   return files;
 }
 
-// API Routes
-app.post('/api/project/create', async (req, res) => {
-  const { name, framework, config } = req.body;
-  const projectId = uuidv4();
-  const projectPath = join(PROJECTS_DIR, projectId);
+// Start server
+function startServer() {
+  const port = typeof process?.env?.PORT === 'string' ? parseInt(process.env.PORT, 10) : DEFAULT_PORT;
+  const server = app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
+  });
 
-  try {
-    // Create project directory
-    if (existsSync(projectPath)) {
-      rmSync(projectPath, { recursive: true });
-    }
-    mkdirSync(projectPath, { recursive: true });
+  // Upgrade HTTP server to WebSocket server
+  server.on('upgrade', (request, socket, head) => {
+    const url = new URL(request.url!, `http://${request.headers.host}`);
+    const projectId = url.searchParams.get('projectId');
 
-    // Initialize project based on framework
-    let command: string;
-    let args: string[];
-
-    if (framework === 'angular') {
-      command = 'ng';
-      args = [
-        'new',
-        name,
-        '--directory=.',
-        '--skip-git',
-        config.routing ? '--routing' : '--no-routing',
-        config.standalone ? '--standalone' : '',
-        config.strict ? '--strict' : '--no-strict',
-        config.ssr ? '--ssr' : '',
-        '--style=scss',
-        '--package-manager=npm',
-        '--defaults'
-      ].filter(Boolean);
-
-      // Install Angular CLI globally if not present
-      await new Promise<void>((resolve, reject) => {
-        const ngInstall = spawn('npm', [ 'install', '-g', '@angular/cli' ], { cwd: projectPath });
-
-        ngInstall.stdout.on('data', (data) => {
-          sendLog(projectId, 'stdout', data.toString());
-        });
-
-        ngInstall.stderr.on('data', (data) => {
-          sendLog(projectId, 'stderr', data.toString());
-        });
-
-        ngInstall.on('close', (code) => {
-          if (code === 0) {
-            resolve();
-          } else {
-            reject(new Error(`Angular CLI installation failed with code ${ code }`));
-          }
-        });
-      });
-    } else {
-      command = 'npx';
-      args = [
-        'create-react-app',
-        name,
-        config.typescript ? '--template typescript' : '',
-        '--use-npm'
-      ].filter(Boolean);
+    if (!projectId) {
+      socket.destroy();
+      return;
     }
 
-    // Create project
-    await new Promise<void>((resolve, reject) => {
-      const process = spawn(command, args, { cwd: projectPath });
-
-      process.stdout.on('data', (data) => {
-        sendLog(projectId, 'stdout', data.toString());
-      });
-
-      process.stderr.on('data', (data) => {
-        sendLog(projectId, 'stderr', data.toString());
-      });
-
-      process.on('close', (code) => {
-        if (code === 0) {
-          resolve();
-        } else {
-          reject(new Error(`Project creation failed with code ${ code }`));
-        }
-      });
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      wss.emit('connection', ws, projectId);
     });
+  });
 
-    // Install additional dependencies for React
-    if (framework === 'react' && (config.eslint || config.tailwind)) {
-      const dependencies = [
-        ...(config.eslint ? [ 'eslint' ] : []),
-        ...(config.tailwind ? [ 'tailwindcss', 'postcss', 'autoprefixer' ] : [])
-      ];
+  return server;
+}
 
-      if (dependencies.length > 0) {
-        await new Promise<void>((resolve, reject) => {
-          const install = spawn('npm', [ 'install', '--save-dev', ...dependencies ], { cwd: projectPath });
-
-          install.stdout.on('data', (data) => {
-            sendLog(projectId, 'stdout', data.toString());
-          });
-
-          install.stderr.on('data', (data) => {
-            sendLog(projectId, 'stderr', data.toString());
-          });
-
-          install.on('close', (code) => {
-            if (code === 0) {
-              resolve();
-            } else {
-              reject(new Error(`Dependency installation failed with code ${ code }`));
-            }
-          });
-        });
-      }
-    }
-
-    // Read project files
-    const files = readDirRecursive(projectPath);
-
-    res.json({
-      id: projectId,
-      files
-    });
-  } catch (error) {
-    sendLog(projectId, 'error', error.message);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.post('/api/project/:id/install', async (req, res) => {
-  const { id } = req.params;
-  const projectPath = join(PROJECTS_DIR, id);
-
-  try {
-    const process = spawn('npm', [ 'install' ], { cwd: projectPath });
-
-    process.stdout.on('data', (data) => {
-      sendLog(id, 'stdout', data.toString());
-    });
-
-    process.stderr.on('data', (data) => {
-      sendLog(id, 'stderr', data.toString());
-    });
-
-    process.on('close', (code) => {
-      if (code === 0) {
-        res.json({ success: true });
-      } else {
-        throw new Error(`npm install failed with code ${ code }`);
-      }
-    });
-  } catch (error) {
-    sendLog(id, 'error', error.message);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.post('/api/project/:id/serve', async (req, res) => {
-  const { id } = req.params;
-  const projectPath = join(PROJECTS_DIR, id);
-
-  try {
-    const process = spawn('npm', [ 'start' ], { cwd: projectPath });
-
-    process.stdout.on('data', (data) => {
-      sendLog(id, 'stdout', data.toString());
-    });
-
-    process.stderr.on('data', (data) => {
-      sendLog(id, 'stderr', data.toString());
-    });
-
-    // Don't wait for the process to complete since it's a long-running server
-    res.json({ success: true });
-  } catch (error) {
-    sendLog(id, 'error', error.message);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.post('/api/project/:id/build', async (req, res) => {
-  const { id } = req.params;
-  const projectPath = join(PROJECTS_DIR, id);
-
-  try {
-    const process = spawn('npm', [ 'run', 'build' ], { cwd: projectPath });
-
-    process.stdout.on('data', (data) => {
-      sendLog(id, 'stdout', data.toString());
-    });
-
-    process.stderr.on('data', (data) => {
-      sendLog(id, 'stderr', data.toString());
-    });
-
-    process.on('close', (code) => {
-      if (code === 0) {
-        res.json({ success: true });
-      } else {
-        throw new Error(`build failed with code ${ code }`);
-      }
-    });
-  } catch (error) {
-    sendLog(id, 'error', error.message);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-server.listen(PORT, () => {
-  console.log(`Server running on port ${ PORT }`);
-});
+// Start the server
+startServer();

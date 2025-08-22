@@ -9,7 +9,8 @@
       "src": "package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "dist/web-ide"
+        "buildCommand": "npm run build:vercel",
+        "outputDirectory": "dist/web-ide"
       }
     }
   ],
@@ -19,8 +20,17 @@
       "dest": "server/src/server.ts"
     },
     {
+      "src": "/ws",
+      "dest": "server/src/server.ts"
+    },
+    {
       "src": "/(.*)",
-      "dest": "/dist/web-ide/$1"
+      "dest": "/dist/web-ide/$1",
+      "continue": true
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/dist/web-ide/index.html"
     }
   ]
 } 

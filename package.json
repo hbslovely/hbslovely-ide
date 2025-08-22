@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start:fe": "ng serve --port 4001",
+    "start:fe": "ng serve --port 4000",
     "start:be": "cd server && npm run dev",
     "start": "concurrently \"npm run start:fe\" \"npm run start:be\"",
     "build": "ng build",
@@ -42,6 +42,7 @@
     "@angular/cli": "^17.2.0",
     "@angular/compiler-cli": "^17.2.0",
     "@types/jasmine": "~5.1.0",
+    "@types/uuid": "^10.0.0",
     "concurrently": "^8.2.2",
     "css-loader": "^7.1.2",
     "file-loader": "^6.2.0",

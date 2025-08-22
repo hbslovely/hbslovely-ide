@@ -17,9 +17,6 @@
         "build": {
           "builder": "@angular-builders/custom-webpack:browser",
           "options": {
-            "customWebpackConfig": {
-              "path": "./custom-webpack.config.js"
-            },
             "outputPath": "dist/web-ide",
             "index": "src/index.html",
             "main": "src/main.ts",
@@ -35,7 +32,10 @@
             "styles": [
               "src/styles.scss"
             ],
-            "scripts": []
+            "scripts": [],
+            "customWebpackConfig": {
+              "path": "./custom-webpack.config.js"
+            }
           },
           "configurations": {
             "production": {
@@ -49,6 +49,12 @@
                   "type": "anyComponentStyle",
                   "maximumWarning": "2kb",
                   "maximumError": "4kb"
+                }
+              ],
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.prod.ts"
                 }
               ],
               "outputHashing": "all"
@@ -68,18 +74,21 @@
           "builder": "@angular-builders/custom-webpack:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "web-ide:build:production"
+              "browserTarget": "web-ide:build:production"
             },
             "development": {
-              "buildTarget": "web-ide:build:development"
+              "browserTarget": "web-ide:build:development"
             }
           },
-          "defaultConfiguration": "development"
+          "defaultConfiguration": "development",
+          "options": {
+            "proxyConfig": "proxy.conf.json"
+          }
         },
         "extract-i18n": {
           "builder": "@angular-devkit/build-angular:extract-i18n",
           "options": {
-            "buildTarget": "web-ide:build"
+            "browserTarget": "web-ide:build"
           }
         },
         "test": {
