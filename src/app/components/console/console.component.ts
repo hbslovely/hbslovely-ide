@@ -1,34 +1,24 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { ProjectService } from '../../services/project.service';
-import { ProjectLog } from '../../models/project.model';
 import { Subscription } from 'rxjs';
+
+interface ConsoleLog {
+  type: 'info' | 'error' | 'warning';
+  message: string;
+  timestamp: Date;
+}
 
 @Component({
   selector: 'app-console',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule],
   template: `
     <div class="console-container">
-      <div class="console-header">
-        <div class="log-filters">
-          <button class="filter-btn" [class.active]="showLogType('stdout')" (click)="toggleLogType('stdout')">
-            Output
-          </button>
-          <button class="filter-btn" [class.active]="showLogType('stderr')" (click)="toggleLogType('stderr')">
-            Errors
-          </button>
-          <button class="filter-btn" [class.active]="showLogType('info')" (click)="toggleLogType('info')">
-            Info
-          </button>
-        </div>
-        <button class="action-button" (click)="clearLogs()">Clear</button>
-      </div>
-      <div class="console-output" #outputContainer>
-        <div *ngFor="let log of filteredLogs" class="log-entry" [class]="log.type">
+      <div class="console-output" #consoleOutput>
+        <div *ngFor="let log of logs" class="log-entry" [class]="log.type">
           <span class="timestamp">{{ log.timestamp | date:'HH:mm:ss' }}</span>
-          <span class="message" [class]="log.type">{{ log.data }}</span>
+          <span class="message">{{ log.message }}</span>
         </div>
       </div>
     </div>
@@ -36,51 +26,19 @@ import { Subscription } from 'rxjs';
   styles: [`
     .console-container {
       height: 100%;
+      background-color: #1e1e1e;
+      color: #d4d4d4;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      overflow: hidden;
       display: flex;
       flex-direction: column;
-      background: #1e1e1e;
-      color: #d4d4d4;
-    }
-
-    .console-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 8px;
-      background: #252526;
-      border-bottom: 1px solid #333;
-    }
-
-    .log-filters {
-      display: flex;
-      gap: 8px;
-    }
-
-    .filter-btn {
-      padding: 4px 8px;
-      background: none;
-      border: none;
-      color: #ccc;
-      cursor: pointer;
-      font-size: 12px;
-      border-radius: 3px;
-
-      &:hover {
-        background: #2a2d2e;
-      }
-
-      &.active {
-        background: #094771;
-        color: #fff;
-      }
     }
 
     .console-output {
       flex: 1;
       overflow-y: auto;
       padding: 8px;
-      font-family: 'Fira Code', monospace;
-      font-size: 12px;
     }
 
     .log-entry {
@@ -89,81 +47,66 @@ import { Subscription } from 'rxjs';
       padding: 2px 0;
       white-space: pre-wrap;
       word-break: break-all;
+    }
 
-      .timestamp {
-        color: #666;
-        user-select: none;
-      }
+    .timestamp {
+      color: #666;
+      user-select: none;
+    }
 
-      &.stdout .message {
-        color: #d4d4d4;
-      }
+    .message {
+      flex: 1;
+    }
 
-      &.stderr .message {
-        color: #f48771;
-      }
+    .info {
+      color: #9cdcfe;
+    }
 
-      &.info .message {
-        color: #75beff;
-      }
+    .error {
+      color: #f14c4c;
+    }
 
-      &.error .message {
-        color: #f48771;
-        font-weight: bold;
-      }
+    .warning {
+      color: #ce9178;
     }
   `]
 })
 export class ConsoleComponent implements OnInit, OnDestroy {
-  logs: ProjectLog[] = [];
-  filteredLogs: ProjectLog[] = [];
-  activeLogTypes: Set<ProjectLog['type']> = new Set(['stdout', 'stderr', 'info']);
-  private subscription: Subscription = new Subscription();
+  @ViewChild('consoleOutput') consoleOutput!: ElementRef;
+  logs: ConsoleLog[] = [];
+  private subscription?: Subscription;
 
   constructor(private projectService: ProjectService) {}
 
   ngOnInit() {
-    this.subscription.add(
-      this.projectService.getProjectLogs().subscribe(log => {
-        this.logs.push(log);
-        this.filterLogs();
-        this.scrollToBottom();
-      })
-    );
+    // Add initial log
+    this.addLog('info', 'Console ready');
+
+    // Subscribe to project changes
+    this.subscription = this.projectService.getCurrentProject().subscribe(project => {
+      if (project) {
+        this.addLog('info', `Project loaded: ${project.name}`);
+      }
+    });
   }
 
   ngOnDestroy() {
-    this.subscription.unsubscribe();
-  }
-
-  showLogType(type: ProjectLog['type']): boolean {
-    return this.activeLogTypes.has(type);
-  }
-
-  toggleLogType(type: ProjectLog['type']) {
-    if (this.activeLogTypes.has(type)) {
-      this.activeLogTypes.delete(type);
-    } else {
-      this.activeLogTypes.add(type);
+    if (this.subscription) {
+      this.subscription.unsubscribe();
     }
-    this.filterLogs();
   }
 
-  clearLogs() {
-    this.logs = [];
-    this.filterLogs();
-  }
+  addLog(type: ConsoleLog['type'], message: string) {
+    this.logs.push({
+      type,
+      message,
+      timestamp: new Date()
+    });
 
-  private filterLogs() {
-    this.filteredLogs = this.logs.filter(log => this.activeLogTypes.has(log.type));
-  }
-
-  private scrollToBottom() {
+    // Auto-scroll to bottom
     setTimeout(() => {
-      const outputContainer = document.querySelector('.console-output');
-      if (outputContainer) {
-        outputContainer.scrollTop = outputContainer.scrollHeight;
-      }
+      const element = this.consoleOutput.nativeElement;
+      element.scrollTop = element.scrollHeight;
     });
   }
 }

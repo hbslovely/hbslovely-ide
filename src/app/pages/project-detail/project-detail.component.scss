@@ -1,0 +1,103 @@
+.project-container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+}
+
+.project-toolbar {
+  background-color: #2d2d2d;
+  color: #d4d4d4;
+  border-bottom: 1px solid #333;
+  height: 48px;
+  padding: 0 16px;
+  gap: 8px;
+}
+
+.project-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.project-content {
+  flex: 1;
+  overflow: hidden;
+}
+
+mat-sidenav-container {
+  height: 100%;
+  background-color: #1e1e1e;
+}
+
+.project-sidebar {
+  width: 300px;
+  background-color: #252526;
+  border-right: 1px solid #333;
+}
+
+.editor-area {
+  height: calc(70% - 48px);
+  overflow: hidden;
+}
+
+.bottom-panel {
+  height: 30%;
+  background-color: #252526;
+  border-top: 1px solid #333;
+}
+
+::ng-deep {
+  .mat-mdc-tab-header {
+    background-color: #2d2d2d;
+    border-bottom: 1px solid #333;
+  }
+
+  .mat-mdc-tab {
+    color: #d4d4d4;
+    opacity: 0.7;
+    height: 36px !important;
+    min-height: 36px !important;
+  }
+
+  .mat-mdc-tab.mdc-tab--active {
+    opacity: 1;
+  }
+
+  .mat-mdc-tab-body-content {
+    height: calc(100% - 36px);
+  }
+
+  .mat-mdc-tab .mdc-tab__text-label {
+    color: #d4d4d4;
+  }
+
+  .mat-mdc-tab-group {
+    height: 100%;
+  }
+
+  .mat-mdc-tab-body-wrapper {
+    height: 100%;
+  }
+
+  .mat-mdc-tab .mat-icon {
+    margin-right: 8px;
+  }
+
+  .mat-mdc-raised-button {
+    height: 32px;
+    line-height: 32px;
+    padding: 0 16px;
+  }
+
+  .mat-mdc-raised-button .mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    margin-right: 4px;
+  }
+} 

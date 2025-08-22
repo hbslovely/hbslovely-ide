@@ -4,19 +4,27 @@ export interface ProjectConfig {
   framework: 'angular' | 'react';
 }
 
+export interface ProjectLog {
+  type: 'stdout' | 'stderr' | 'error';
+  data: string;
+  timestamp: Date;
+}
+
 export interface Project {
   id: string;
   name: string;
-  description?: string;
-  framework: 'angular' | 'react';
-  createdAt: Date;
-  updatedAt: Date;
-  config: ProjectConfig;
-  logs: ProjectLog[];
+  description: string;
+  template: string;
+  createdAt: string;
+  updatedAt: string;
+  files: ProjectFile[];
 }
 
-export interface ProjectLog {
-  type: 'stdout' | 'stderr' | 'info' | 'error';
-  data: string;
-  timestamp: Date;
+export interface ProjectFile {
+  name: string;
+  path: string;
+  type: 'file' | 'directory';
+  size?: number;
+  modifiedAt?: string;
+  children?: ProjectFile[];
 } 

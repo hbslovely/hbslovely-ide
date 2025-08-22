@@ -2,24 +2,29 @@ import { Injectable } from '@angular/core';
 import { Project } from '../models/project.model';
 import { FileNode } from '../models/file.model';
 
+const DB_NAME = 'web-ide-db';
+const PROJECTS_STORE = 'projects';
+const FILES_STORE = 'files';
+
 @Injectable({
   providedIn: 'root'
 })
 export class StorageService {
-  private readonly DB_NAME = 'web-ide-db';
-  private readonly PROJECTS_STORE = 'projects';
-  private readonly FILES_STORE = 'files';
   private db: IDBDatabase | null = null;
+  private dbReady: Promise<void>;
 
   constructor() {
-    this.initializeDB();
+    this.dbReady = this.initializeDB();
   }
 
   private initializeDB(): Promise<void> {
     return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.DB_NAME, 1);
+      const request = indexedDB.open(DB_NAME, 1);
 
-      request.onerror = () => reject(request.error);
+      request.onerror = () => {
+        console.error('Error opening database:', request.error);
+        reject(request.error);
+      };
 
       request.onsuccess = () => {
         this.db = request.result;
@@ -29,200 +34,157 @@ export class StorageService {
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
 
-        if (!db.objectStoreNames.contains(this.PROJECTS_STORE)) {
-          db.createObjectStore(this.PROJECTS_STORE, { keyPath: 'id' });
+        // Create projects store
+        if (!db.objectStoreNames.contains(PROJECTS_STORE)) {
+          db.createObjectStore(PROJECTS_STORE, { keyPath: 'id' });
         }
 
-        if (!db.objectStoreNames.contains(this.FILES_STORE)) {
-          const filesStore = db.createObjectStore(this.FILES_STORE, { keyPath: ['projectId', 'path'] });
-          filesStore.createIndex('projectId', 'projectId');
-          filesStore.createIndex('path', 'path');
-          filesStore.createIndex('updatedAt', 'updatedAt');
+        // Create files store
+        if (!db.objectStoreNames.contains(FILES_STORE)) {
+          const filesStore = db.createObjectStore(FILES_STORE, { keyPath: 'id' });
+          filesStore.createIndex('projectId', 'projectId', { unique: false });
         }
       };
     });
   }
 
-  async waitForInitialization(): Promise<void> {
-    if (this.db) return;
-    await this.initializeDB();
+  private async waitForDB(): Promise<IDBDatabase> {
+    await this.dbReady;
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+    return this.db;
   }
 
   async saveProject(project: Project): Promise<void> {
-    await this.waitForInitialization();
+    const db = await this.waitForDB();
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([this.PROJECTS_STORE], 'readwrite');
-      const store = transaction.objectStore(this.PROJECTS_STORE);
+      const transaction = db.transaction(PROJECTS_STORE, 'readwrite');
+      const store = transaction.objectStore(PROJECTS_STORE);
+
       const request = store.put(project);
 
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve();
+      request.onerror = () => {
+        console.error('Error saving project:', request.error);
+        reject(request.error);
+      };
+
+      request.onsuccess = () => {
+        // Save current project ID to localStorage
+        localStorage.setItem('currentProjectId', project.id);
+        resolve();
+      };
     });
   }
 
-  async getProject(projectId: string): Promise<Project | null> {
-    await this.waitForInitialization();
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([this.PROJECTS_STORE], 'readonly');
-      const store = transaction.objectStore(this.PROJECTS_STORE);
-      const request = store.get(projectId);
+  async getCurrentProject(): Promise<Project | null> {
+    const projectId = localStorage.getItem('currentProjectId');
+    if (!projectId) return null;
+    return this.getProject(projectId);
+  }
 
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve(request.result || null);
+  async getProject(id: string): Promise<Project | null> {
+    const db = await this.waitForDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(PROJECTS_STORE, 'readonly');
+      const store = transaction.objectStore(PROJECTS_STORE);
+      const request = store.get(id);
+
+      request.onerror = () => {
+        console.error('Error getting project:', request.error);
+        reject(request.error);
+      };
+
+      request.onsuccess = () => {
+        resolve(request.result || null);
+      };
     });
   }
 
-  async deleteProject(projectId: string): Promise<void> {
-    await this.waitForInitialization();
+  async deleteProject(id: string): Promise<void> {
+    const db = await this.waitForDB();
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([this.PROJECTS_STORE, this.FILES_STORE], 'readwrite');
+      const transaction = db.transaction([PROJECTS_STORE, FILES_STORE], 'readwrite');
       
       // Delete project
-      const projectStore = transaction.objectStore(this.PROJECTS_STORE);
-      const projectRequest = projectStore.delete(projectId);
-      
-      // Delete all files for this project
-      const filesStore = transaction.objectStore(this.FILES_STORE);
+      const projectStore = transaction.objectStore(PROJECTS_STORE);
+      const projectRequest = projectStore.delete(id);
+
+      projectRequest.onerror = () => {
+        console.error('Error deleting project:', projectRequest.error);
+        reject(projectRequest.error);
+      };
+
+      // Delete associated files
+      const filesStore = transaction.objectStore(FILES_STORE);
       const filesIndex = filesStore.index('projectId');
-      const filesRequest = filesIndex.openCursor(IDBKeyRange.only(projectId));
-      
+      const filesRequest = filesIndex.openKeyCursor(IDBKeyRange.only(id));
+
+      filesRequest.onerror = () => {
+        console.error('Error deleting project files:', filesRequest.error);
+        reject(filesRequest.error);
+      };
+
       filesRequest.onsuccess = (event) => {
         const cursor = (event.target as IDBRequest).result;
         if (cursor) {
-          cursor.delete();
+          filesStore.delete(cursor.primaryKey);
           cursor.continue();
         }
       };
 
-      transaction.oncomplete = () => resolve();
-      transaction.onerror = () => reject(transaction.error);
-    });
-  }
-
-  async saveFile(projectId: string, file: FileNode): Promise<void> {
-    await this.waitForInitialization();
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([this.FILES_STORE], 'readwrite');
-      const store = transaction.objectStore(this.FILES_STORE);
-      const request = store.put({
-        projectId,
-        ...file,
-        updatedAt: new Date()
-      });
-
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve();
-    });
-  }
-
-  async getFile(projectId: string, path: string): Promise<FileNode | null> {
-    await this.waitForInitialization();
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([this.FILES_STORE], 'readonly');
-      const store = transaction.objectStore(this.FILES_STORE);
-      const request = store.get([projectId, path]);
-
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve(request.result || null);
-    });
-  }
-
-  async deleteFile(projectId: string, path: string): Promise<void> {
-    await this.waitForInitialization();
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([this.FILES_STORE], 'readwrite');
-      const store = transaction.objectStore(this.FILES_STORE);
-      const request = store.delete([projectId, path]);
-
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve();
-    });
-  }
-
-  async getAllFiles(projectId: string): Promise<FileNode[]> {
-    await this.waitForInitialization();
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([this.FILES_STORE], 'readonly');
-      const store = transaction.objectStore(this.FILES_STORE);
-      const index = store.index('projectId');
-      const request = index.getAll(projectId);
-
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve(request.result || []);
+      transaction.oncomplete = () => {
+        // Remove from localStorage if it's the current project
+        if (localStorage.getItem('currentProjectId') === id) {
+          localStorage.removeItem('currentProjectId');
+        }
+        resolve();
+      };
     });
   }
 
   async saveFiles(projectId: string, files: FileNode[]): Promise<void> {
-    await this.waitForInitialization();
+    const db = await this.waitForDB();
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([this.FILES_STORE], 'readwrite');
-      const store = transaction.objectStore(this.FILES_STORE);
+      const transaction = db.transaction(FILES_STORE, 'readwrite');
+      const store = transaction.objectStore(FILES_STORE);
 
       files.forEach(file => {
-        store.put({
+        const fileRecord = {
+          id: `${projectId}:${file.path}`,
           projectId,
-          ...file,
-          updatedAt: new Date()
-        });
+          ...file
+        };
+        store.put(fileRecord);
       });
 
-      transaction.oncomplete = () => resolve();
-      transaction.onerror = () => reject(transaction.error);
+      transaction.onerror = () => {
+        console.error('Error saving files:', transaction.error);
+        reject(transaction.error);
+      };
+
+      transaction.oncomplete = () => {
+        resolve();
+      };
     });
   }
 
-  async clearAllFiles(projectId: string): Promise<void> {
-    await this.waitForInitialization();
+  async getFiles(projectId: string): Promise<FileNode[]> {
+    const db = await this.waitForDB();
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([this.FILES_STORE], 'readwrite');
-      const store = transaction.objectStore(this.FILES_STORE);
+      const transaction = db.transaction(FILES_STORE, 'readonly');
+      const store = transaction.objectStore(FILES_STORE);
       const index = store.index('projectId');
-      const request = index.openCursor(IDBKeyRange.only(projectId));
+      const request = index.getAll(projectId);
 
-      request.onsuccess = (event) => {
-        const cursor = (event.target as IDBRequest).result;
-        if (cursor) {
-          cursor.delete();
-          cursor.continue();
-        }
+      request.onerror = () => {
+        console.error('Error getting files:', request.error);
+        reject(request.error);
       };
 
-      transaction.oncomplete = () => resolve();
-      transaction.onerror = () => reject(transaction.error);
-    });
-  }
-
-  async searchFiles(projectId: string, query: string): Promise<FileNode[]> {
-    const files = await this.getAllFiles(projectId);
-    const searchTerm = query.toLowerCase();
-    return files.filter(file => 
-      file.name.toLowerCase().includes(searchTerm) ||
-      file.path.toLowerCase().includes(searchTerm) ||
-      (file.content && file.content.toLowerCase().includes(searchTerm))
-    );
-  }
-
-  async getRecentFiles(projectId: string, limit: number = 10): Promise<FileNode[]> {
-    await this.waitForInitialization();
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([this.FILES_STORE], 'readonly');
-      const store = transaction.objectStore(this.FILES_STORE);
-      const index = store.index('updatedAt');
-      const request = index.openCursor(null, 'prev');
-
-      const files: FileNode[] = [];
-      
-      request.onsuccess = (event) => {
-        const cursor = (event.target as IDBRequest).result;
-        if (cursor && files.length < limit && cursor.value.projectId === projectId) {
-          files.push(cursor.value);
-          cursor.continue();
-        } else {
-          resolve(files);
-        }
+      request.onsuccess = () => {
+        resolve(request.result.map(({ id, projectId, ...file }) => file));
       };
-
-      request.onerror = () => reject(request.error);
     });
   }
 } 

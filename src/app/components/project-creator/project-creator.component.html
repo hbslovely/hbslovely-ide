@@ -1,63 +1,53 @@
-<div class="project-form-container">
-  <h2 mat-dialog-title>Create New Project</h2>
-  <mat-dialog-content>
-    <form [formGroup]="projectForm" class="project-form">
-      <mat-form-field appearance="fill">
-        <mat-label>Project Name</mat-label>
-        <input matInput formControlName="name" required>
-        <mat-error *ngIf="projectForm.get('name')?.hasError('required')">
-          Project name is required
-        </mat-error>
-        <mat-error *ngIf="projectForm.get('name')?.hasError('pattern')">
-          Project name can only contain letters, numbers, and dashes
-        </mat-error>
-      </mat-form-field>
+<div class="project-creator">
+  <h2>{{ creating ? 'Creating Project...' : 'Create New Project' }}</h2>
 
-      <mat-form-field appearance="fill">
-        <mat-label>Description</mat-label>
-        <textarea matInput formControlName="description" rows="3"></textarea>
-      </mat-form-field>
+  <!-- Project Form -->
+  <form [formGroup]="projectForm" (ngSubmit)="create()" *ngIf="!creating">
+    <mat-form-field appearance="fill">
+      <mat-label>Project Name</mat-label>
+      <input matInput formControlName="name" placeholder="my-project">
+      <mat-error *ngIf="projectForm.get('name')?.errors?.['pattern']">
+        Project name can only contain lowercase letters, numbers, and hyphens
+      </mat-error>
+    </mat-form-field>
 
-      <mat-form-field appearance="fill">
-        <mat-label>Framework</mat-label>
-        <mat-select formControlName="framework" required>
-          <mat-option value="angular">Angular</mat-option>
-          <mat-option value="react">React</mat-option>
-        </mat-select>
-      </mat-form-field>
+    <mat-form-field appearance="fill">
+      <mat-label>Description</mat-label>
+      <textarea matInput formControlName="description" placeholder="Project description"></textarea>
+    </mat-form-field>
 
-      <ng-container *ngIf="projectForm.get('framework')?.value === 'angular'">
-        <div class="options-group">
-          <h3>Angular Options</h3>
-          <mat-checkbox formControlName="routing">Add routing</mat-checkbox>
-          <mat-checkbox formControlName="standalone">Use standalone components</mat-checkbox>
-          <mat-checkbox formControlName="strict">Enable strict mode</mat-checkbox>
-          <mat-checkbox formControlName="ssr">Enable SSR (Server-side rendering)</mat-checkbox>
-        </div>
-      </ng-container>
+    <mat-form-field appearance="fill">
+      <mat-label>Template</mat-label>
+      <mat-select formControlName="template">
+        <mat-option value="angular">Angular</mat-option>
+        <mat-option value="react">React</mat-option>
+      </mat-select>
+    </mat-form-field>
 
-      <ng-container *ngIf="projectForm.get('framework')?.value === 'react'">
-        <div class="options-group">
-          <h3>React Options</h3>
-          <mat-checkbox formControlName="typescript">Use TypeScript</mat-checkbox>
-          <mat-checkbox formControlName="eslint">Add ESLint</mat-checkbox>
-          <mat-checkbox formControlName="tailwind">Add Tailwind CSS</mat-checkbox>
-        </div>
-      </ng-container>
+    <div class="actions">
+      <button mat-button type="button" (click)="cancel()">Cancel</button>
+      <button mat-raised-button color="primary" type="submit" [disabled]="!projectForm.valid">
+        Create
+      </button>
+    </div>
+  </form>
 
-      <div *ngIf="error" class="error-message">
-        {{ error }}
+  <!-- Creation Progress -->
+  <div class="creation-progress" *ngIf="creating">
+    <div class="log-container">
+      <div class="log-entry" *ngFor="let log of logs" [class]="log.type">
+        <span class="timestamp">{{ log.timestamp | date:'HH:mm:ss' }}</span>
+        <span class="log-data">{{ log.data }}</span>
       </div>
+      <div #logBottom></div>
+    </div>
 
-      <mat-progress-bar *ngIf="isLoading" mode="indeterminate"></mat-progress-bar>
-    </form>
-  </mat-dialog-content>
-  <mat-dialog-actions align="end">
-    <button mat-button (click)="cancel()">Cancel</button>
-    <button mat-raised-button color="primary" 
-            [disabled]="!projectForm.valid || isLoading"
-            (click)="create()">
-      Create Project
-    </button>
-  </mat-dialog-actions>
-</div> 
+    <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+
+    <div class="actions">
+      <button mat-button color="warn" (click)="cancel()" [disabled]="!canCancel">
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>

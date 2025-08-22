@@ -11,12 +11,5 @@
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node"
   },
-  "include": [
-    "src/**/*",
-    "../node_modules/@types/node/globals.d.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist"
-  ]
+  "include": ["src/**/*"]
 }

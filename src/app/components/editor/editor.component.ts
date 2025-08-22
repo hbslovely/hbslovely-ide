@@ -1,9 +1,6 @@
-import { Component, OnInit, OnDestroy, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
+import { Component, OnInit, ElementRef, ViewChild, AfterViewInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FileService } from '../../services/file.service';
-import { EditorService } from '../../services/editor.service';
-import { FileNode } from '../../models/file.model';
-import { Subscription } from 'rxjs';
+import * as monaco from 'monaco-editor';
 
 @Component({
   selector: 'app-editor',
@@ -17,48 +14,67 @@ import { Subscription } from 'rxjs';
       width: 100%;
       height: 100%;
     }
+
+    ::ng-deep {
+      @font-face {
+        font-family: "codicon";
+        src: url("/assets/monaco/codicon.ttf") format("truetype");
+      }
+    }
   `]
 })
-export class EditorComponent implements OnInit, OnDestroy, AfterViewInit {
+export class EditorComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('editorContainer', { static: true }) editorContainer!: ElementRef;
-  private editorSubscription?: Subscription;
-  private initialized = false;
+  private editor: monaco.editor.IStandaloneCodeEditor | null = null;
 
-  constructor(
-    private fileService: FileService,
-    private editorService: EditorService
-  ) {}
+  constructor() {}
 
   ngOnInit() {
-    this.editorSubscription = this.fileService.getEditorState().subscribe(state => {
-      if (state.currentFile && this.initialized) {
-        this.openFile(state.currentFile);
-      }
+    // Initialize Monaco environment
+    monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+      noSemanticValidation: true,
+      noSyntaxValidation: false
     });
   }
 
-  async ngAfterViewInit() {
-    await this.editorService.initializeEditor(this.editorContainer.nativeElement);
-    this.initialized = true;
-
-    // Check if there's a current file to open
-    const state = await this.fileService.getEditorState().value;
-    if (state.currentFile) {
-      await this.openFile(state.currentFile);
-    }
+  ngAfterViewInit() {
+    this.initMonaco();
   }
 
   ngOnDestroy() {
-    if (this.editorSubscription) {
-      this.editorSubscription.unsubscribe();
+    if (this.editor) {
+      this.editor.dispose();
     }
-    this.editorService.dispose();
   }
 
-  private async openFile(file: FileNode) {
-    if (file.content !== undefined) {
-      this.editorService.setContent(file.content);
-      this.editorService.setLanguage(file.path);
+  private initMonaco() {
+    if (!this.editorContainer) {
+      throw new Error('Editor container not found');
     }
+
+    this.editor = monaco.editor.create(this.editorContainer.nativeElement, {
+      value: '// Start coding here...',
+      language: 'typescript',
+      theme: 'vs-dark',
+      automaticLayout: true,
+      minimap: {
+        enabled: true
+      },
+      scrollBeyondLastLine: false,
+      fontSize: 14,
+      fontFamily: "'JetBrains Mono', Consolas, 'Courier New', monospace",
+      lineNumbers: 'on',
+      roundedSelection: false,
+      scrollbar: {
+        useShadows: true,
+        verticalHasArrows: false,
+        horizontalHasArrows: false,
+        vertical: 'visible',
+        horizontal: 'visible',
+        verticalScrollbarSize: 10,
+        horizontalScrollbarSize: 10,
+        arrowSize: 30
+      }
+    });
   }
 }

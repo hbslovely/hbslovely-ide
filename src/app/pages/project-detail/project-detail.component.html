@@ -1,0 +1,62 @@
+<div class="project-container">
+  <!-- Top Toolbar -->
+  <mat-toolbar class="project-toolbar">
+    <button mat-icon-button (click)="toggleSidebar()">
+      <mat-icon>menu</mat-icon>
+    </button>
+    <span class="project-name">{{ project?.name || 'Loading...' }}</span>
+    <span class="spacer"></span>
+    <button mat-flat-button color="primary" (click)="serveProject()">
+      <mat-icon>play_arrow</mat-icon>
+      Serve
+    </button>
+    <button mat-flat-button color="accent" (click)="buildProject()">
+      <mat-icon>build</mat-icon>
+      Build
+    </button>
+  </mat-toolbar>
+
+  <!-- Main Content -->
+  <div class="project-content">
+    <!-- Sidebar -->
+    <mat-sidenav-container>
+      <mat-sidenav mode="side" [opened]="sidebarOpen" class="project-sidebar">
+        <app-file-explorer></app-file-explorer>
+      </mat-sidenav>
+
+      <mat-sidenav-content>
+        <!-- Editor Area -->
+        <div class="editor-area">
+          <app-editor></app-editor>
+        </div>
+
+        <!-- Bottom Panel -->
+        <div class="bottom-panel">
+          <mat-tab-group>
+            <mat-tab>
+              <ng-template mat-tab-label>
+                <mat-icon>terminal</mat-icon>
+                Console
+              </ng-template>
+              <app-console></app-console>
+            </mat-tab>
+            <mat-tab>
+              <ng-template mat-tab-label>
+                <mat-icon>network_check</mat-icon>
+                Network
+              </ng-template>
+              <app-network></app-network>
+            </mat-tab>
+            <mat-tab>
+              <ng-template mat-tab-label>
+                <mat-icon>code</mat-icon>
+                Elements
+              </ng-template>
+              <app-elements-inspector></app-elements-inspector>
+            </mat-tab>
+          </mat-tab-group>
+        </div>
+      </mat-sidenav-content>
+    </mat-sidenav-container>
+  </div>
+</div> 

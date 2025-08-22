@@ -1,0 +1,41 @@
+.home-container {
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+}
+
+.content {
+  text-align: center;
+  padding: 24px;
+  max-width: 600px;
+
+  h1 {
+    font-size: 48px;
+    font-weight: 300;
+    margin: 0 0 16px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  p {
+    font-size: 18px;
+    margin: 0 0 32px;
+    opacity: 0.8;
+  }
+
+  button {
+    font-size: 16px;
+    padding: 0 24px;
+    height: 48px;
+    border-radius: 24px;
+
+    mat-icon {
+      margin-right: 8px;
+      font-size: 24px;
+      width: 24px;
+      height: 24px;
+    }
+  }
+} 

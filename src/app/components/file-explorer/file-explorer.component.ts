@@ -4,13 +4,16 @@ import { MatTreeModule, MatTreeNestedDataSource } from '@angular/material/tree';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { NestedTreeControl } from '@angular/cdk/tree';
-import { FileService } from '../../services/file.service';
 import { ProjectService } from '../../services/project.service';
-import { FileNode } from '../../models/file.model';
+import { ProjectFile } from '../../models/project.model';
 import { Subscription } from 'rxjs';
 
-interface FileTreeNode extends FileNode {
-  children?: FileTreeNode[];
+interface FileNode {
+  name: string;
+  path: string;
+  type: 'file' | 'directory';
+  children?: FileNode[];
+  expanded?: boolean;
 }
 
 @Component({
@@ -24,86 +27,106 @@ interface FileTreeNode extends FileNode {
   ],
   template: `
     <div class="file-explorer">
-      <div class="toolbar">
-        <button mat-icon-button (click)="refresh()">
-          <mat-icon>refresh</mat-icon>
-        </button>
-      </div>
       <mat-tree [dataSource]="dataSource" [treeControl]="treeControl">
-        <!-- Leaf node -->
-        <mat-tree-node *matTreeNodeDef="let node" matTreeNodePadding>
-          <button mat-icon-button disabled>
-            <mat-icon>description</mat-icon>
+        <!-- Directory node -->
+        <mat-tree-node *matTreeNodeDef="let node; when: hasChild" matTreeNodePadding>
+          <button mat-icon-button matTreeNodeToggle>
+            <mat-icon>
+              {{ treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right' }}
+            </mat-icon>
           </button>
-          <span (click)="openFile(node)">{{node.name}}</span>
+          <mat-icon>folder{{ treeControl.isExpanded(node) ? '_open' : '' }}</mat-icon>
+          <span class="node-name">{{ node.name }}</span>
         </mat-tree-node>
-        <!-- Expandable node -->
-        <mat-nested-tree-node *matTreeNodeDef="let node; when: hasChild">
-          <div class="mat-tree-node">
-            <button mat-icon-button matTreeNodeToggle>
-              <mat-icon>
-                {{treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right'}}
-              </mat-icon>
-            </button>
-            <mat-icon>folder{{treeControl.isExpanded(node) ? '_open' : ''}}</mat-icon>
-            <span>{{node.name}}</span>
-          </div>
-          <div class="nested-node" [class.expanded]="treeControl.isExpanded(node)">
-            <ng-container matTreeNodeOutlet></ng-container>
-          </div>
-        </mat-nested-tree-node>
+
+        <!-- File node -->
+        <mat-tree-node *matTreeNodeDef="let node" matTreeNodePadding>
+          <button mat-icon-button disabled></button>
+          <mat-icon [class]="getFileIconClass(node.name)">{{ getFileIcon(node.name) }}</mat-icon>
+          <span class="node-name" (click)="openFile(node)">{{ node.name }}</span>
+        </mat-tree-node>
       </mat-tree>
     </div>
   `,
   styles: [`
     .file-explorer {
       height: 100%;
-      display: flex;
-      flex-direction: column;
-    }
-    .toolbar {
-      padding: 8px;
-      border-bottom: 1px solid #e0e0e0;
-    }
-    mat-tree {
-      flex: 1;
+      background-color: #252526;
+      color: #d4d4d4;
       overflow: auto;
     }
+
+    .mat-tree {
+      background: transparent;
+    }
+
     .mat-tree-node {
-      min-height: 40px;
+      min-height: 32px;
       cursor: pointer;
+      color: #d4d4d4;
     }
-    .nested-node {
-      display: none;
+
+    .mat-tree-node:hover {
+      background-color: #2a2d2e;
     }
-    .nested-node.expanded {
-      display: block;
-      padding-left: 40px;
+
+    .mat-tree-node .mat-icon-button {
+      width: 24px;
+      height: 24px;
+      line-height: 24px;
+      color: #d4d4d4;
     }
-    span {
-      margin-left: 8px;
-      cursor: pointer;
+
+    .mat-tree-node .mat-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+      margin-right: 8px;
+      color: #d4d4d4;
     }
-    span:hover {
-      color: #1976d2;
+
+    .node-name {
+      font-size: 13px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* File type icons */
+    .icon-ts {
+      color: #007acc !important;
+    }
+
+    .icon-js {
+      color: #f7df1e !important;
+    }
+
+    .icon-html {
+      color: #e44d26 !important;
+    }
+
+    .icon-css, .icon-scss {
+      color: #264de4 !important;
+    }
+
+    .icon-json {
+      color: #fbc02d !important;
+    }
+
+    .icon-md {
+      color: #42a5f5 !important;
     }
   `]
 })
 export class FileExplorerComponent implements OnInit, OnDestroy {
-  treeControl = new NestedTreeControl<FileTreeNode>(node => node.children);
-  dataSource = new MatTreeNestedDataSource<FileTreeNode>();
-  private projectSubscription?: Subscription;
+  treeControl = new NestedTreeControl<FileNode>(node => node.children);
+  dataSource = new MatTreeNestedDataSource<FileNode>();
+  private subscription?: Subscription;
 
-  constructor(
-    private fileService: FileService,
-    private projectService: ProjectService
-  ) {}
+  constructor(private projectService: ProjectService) {}
 
   ngOnInit() {
-    // Subscribe to current project changes
-    this.projectSubscription = this.projectService.getCurrentProject().subscribe(project => {
+    this.subscription = this.projectService.getCurrentProject().subscribe(project => {
       if (project) {
-        this.loadProjectFiles(project.id);
+        this.dataSource.data = this.transformFiles(project.files);
       } else {
         this.dataSource.data = [];
       }
@@ -111,79 +134,82 @@ export class FileExplorerComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
-    if (this.projectSubscription) {
-      this.projectSubscription.unsubscribe();
+    if (this.subscription) {
+      this.subscription.unsubscribe();
     }
   }
 
-  hasChild = (_: number, node: FileTreeNode) => !!node.children && node.children.length > 0;
+  hasChild = (_: number, node: FileNode) => node.type === 'directory' && !!node.children?.length;
 
-  async openFile(node: FileTreeNode) {
+  transformFiles(files: ProjectFile[]): FileNode[] {
+    return files.map(file => ({
+      name: file.name,
+      path: file.path,
+      type: file.type,
+      children: file.children ? this.transformFiles(file.children) : undefined
+    }));
+  }
+
+  async openFile(node: FileNode) {
     if (node.type === 'file') {
-      await this.fileService.openFile(node);
-    }
-  }
-
-  async refresh() {
-    const project = this.projectService.getCurrentProject().value;
-    if (project) {
-      await this.loadProjectFiles(project.id);
-    }
-  }
-
-  private async loadProjectFiles(projectId: string) {
-    try {
-      const files = await this.projectService.getRecentFiles(projectId);
-      this.dataSource.data = this.buildFileTree(files);
-    } catch (error) {
-      console.error('Error loading project files:', error);
-    }
-  }
-
-  private buildFileTree(files: FileNode[]): FileTreeNode[] {
-    const root: { [key: string]: FileTreeNode } = {};
-
-    // Sort files to process directories first
-    const sortedFiles = [...files].sort((a, b) => {
-      if (a.type === 'directory' && b.type === 'file') return -1;
-      if (a.type === 'file' && b.type === 'directory') return 1;
-      return a.path.localeCompare(b.path);
-    });
-
-    for (const file of sortedFiles) {
-      const parts = file.path.split('/').filter(Boolean);
-      let current = root;
-
-      for (let i = 0; i < parts.length; i++) {
-        const part = parts[i];
-        const isLast = i === parts.length - 1;
-        const isFile = file.type === 'file' && isLast;
-
-        if (!current[part]) {
-          current[part] = {
-            name: part,
-            type: isFile ? 'file' : 'directory',
-            path: parts.slice(0, i + 1).join('/'),
-            children: isFile ? undefined : []
-          };
-
-          if (isFile) {
-            current[part].content = file.content;
-          }
+      try {
+        const project = this.projectService.getCurrentProjectValue();
+        if (project) {
+          const content = await this.projectService.getFile(project.id, node.path);
+          // Emit event or use a service to open the file in the editor
+          console.log('Opening file:', node.path, content);
         }
-
-        if (!isLast) {
-          const node = current[part];
-          if (node.children) {
-            current = node.children.reduce((acc, child) => {
-              acc[child.name] = child;
-              return acc;
-            }, {} as { [key: string]: FileTreeNode });
-          }
-        }
+      } catch (error) {
+        console.error('Error opening file:', error);
       }
     }
+  }
 
-    return Object.values(root);
+  getFileIcon(fileName: string): string {
+    const extension = fileName.split('.').pop()?.toLowerCase() || '';
+    switch (extension) {
+      case 'ts':
+      case 'tsx':
+        return 'code';
+      case 'js':
+      case 'jsx':
+        return 'javascript';
+      case 'html':
+        return 'html';
+      case 'css':
+      case 'scss':
+      case 'sass':
+        return 'css';
+      case 'json':
+        return 'data_object';
+      case 'md':
+        return 'article';
+      default:
+        return 'description';
+    }
+  }
+
+  getFileIconClass(fileName: string): string {
+    const extension = fileName.split('.').pop()?.toLowerCase() || '';
+    switch (extension) {
+      case 'ts':
+      case 'tsx':
+        return 'icon-ts';
+      case 'js':
+      case 'jsx':
+        return 'icon-js';
+      case 'html':
+        return 'icon-html';
+      case 'css':
+      case 'scss':
+      case 'sass':
+        return 'icon-css';
+      case 'json':
+        return 'icon-json';
+      case 'md':
+        return 'icon-md';
+      default:
+        return '';
+    }
   }
 }

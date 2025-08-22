@@ -1,25 +1,18 @@
 const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
+const CopyWebpackPlugin = require('copy-webpack-plugin');
+const path = require('path');
 
 module.exports = {
   plugins: [
     new MonacoWebpackPlugin({
-      languages: [
-        'javascript',
-        'typescript',
-        'html',
-        'css',
-        'json',
-        'markdown',
-        'python',
-        'java',
-        'go',
-        'rust',
-        'php',
-        'ruby',
-        'shell',
-        'sql',
-        'xml',
-        'yaml'
+      languages: ['typescript', 'javascript', 'html', 'css', 'scss', 'json']
+    }),
+    new CopyWebpackPlugin({
+      patterns: [
+        {
+          from: 'node_modules/monaco-editor/min/vs/base/browser/ui/codicons/codicon/codicon.ttf',
+          to: 'assets/monaco/codicon.ttf'
+        }
       ]
     })
   ],
