@@ -1,0 +1,68 @@
+@import './styles/fonts';
+
+.ide-container {
+  height: 100vh;
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  grid-template-rows: 1fr 200px;
+  background: #1e1e1e;
+  color: #fff;
+  @include base-font;
+}
+
+.sidebar {
+  grid-row: 1 / -1;
+  border-right: 1px solid #333;
+}
+
+.main-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: #333;
+}
+
+.editor-section,
+.preview-section {
+  background: #1e1e1e;
+  overflow: hidden;
+}
+
+.bottom-panel {
+  grid-column: 2;
+  border-top: 1px solid #333;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-tabs {
+  display: flex;
+  background: #252526;
+  border-bottom: 1px solid #333;
+}
+
+.tab-btn {
+  padding: 8px 16px;
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: #2a2d2e;
+  }
+
+  &.active {
+    background: #1e1e1e;
+    border-bottom-color: #0e639c;
+  }
+}
+
+.panel-content {
+  flex: 1;
+  overflow: auto;
+  background: #1e1e1e;
+}

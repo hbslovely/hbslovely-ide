@@ -1,0 +1,21 @@
+// Google Fonts imports
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@300;400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100;200;300;400;500;600;700&display=swap');
+
+// Font variables
+$font-family-code: 'Fira Code', 'JetBrains Mono', monospace;
+$font-family-base: 'Source Sans Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+
+// Font mixins
+@mixin code-font {
+  font-family: $font-family-code;
+  font-feature-settings: "liga" 0;
+  -webkit-font-feature-settings: "liga" 0;
+}
+
+@mixin base-font {
+  font-family: $font-family-base;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+} 

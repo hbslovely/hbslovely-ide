@@ -1,0 +1,83 @@
+@import '@angular/material/prebuilt-themes/pink-bluegrey.css';
+@import './app/styles/fonts';
+
+/* Reset and base styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  @include base-font;
+}
+
+/* Scrollbar styles */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e1e1e;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #424242;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4f4f4f;
+}
+
+/* Monaco editor styles */
+.monaco-editor {
+  @include code-font;
+  .margin,
+  .monaco-editor-background {
+    background-color: #1e1e1e !important;
+  }
+}
+
+/* Common component styles */
+.panel-header {
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  background: #252526;
+  border-bottom: 1px solid #333;
+}
+
+.action-button {
+  background: none;
+  border: none;
+  color: #ccc;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 12px;
+  border-radius: 3px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: #2a2d2e;
+    color: #fff;
+  }
+
+  &.active {
+    background: #094771;
+    color: #fff;
+  }
+}
+
+.panel-content {
+  height: 100%;
+  overflow: auto;
+  padding: 8px;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  font-size: 12px;
+  line-height: 1.4;
+}
