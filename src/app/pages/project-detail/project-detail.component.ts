@@ -6,12 +6,17 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatTabsModule } from '@angular/material/tabs';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { FileExplorerComponent } from '../../components/file-explorer/file-explorer.component';
 import { EditorComponent } from '../../components/editor/editor.component';
 import { ConsoleComponent } from '../../components/console/console.component';
 import { NetworkComponent } from '../../components/network/network.component';
 import { ElementsInspectorComponent } from '../../components/elements-inspector/elements-inspector.component';
+import { PreviewComponent } from '../../components/preview/preview.component';
+import { SafeUrlPipe } from '../../pipes/safe-url.pipe';
 import { ProjectService } from '../../services/project.service';
+import { EditorService } from '../../services/editor.service';
+import { ProjectRunnerService, ProjectStatus } from '../../services/project-runner.service';
 import { Project } from '../../models/project.model';
 import { Subscription } from 'rxjs';
 
@@ -25,11 +30,14 @@ import { Subscription } from 'rxjs';
     MatIconModule,
     MatSidenavModule,
     MatTabsModule,
+    MatProgressBarModule,
     FileExplorerComponent,
     EditorComponent,
     ConsoleComponent,
     NetworkComponent,
-    ElementsInspectorComponent
+    ElementsInspectorComponent,
+    PreviewComponent,
+    SafeUrlPipe
   ],
   templateUrl: './project-detail.component.html',
   styleUrls: ['./project-detail.component.scss']
@@ -37,11 +45,16 @@ import { Subscription } from 'rxjs';
 export class ProjectDetailComponent implements OnInit, OnDestroy {
   project: Project | null = null;
   sidebarOpen = true;
-  private subscription?: Subscription;
+  rightSidebarOpen = true;
+  status: ProjectStatus | null = null;
+  private subscriptions: Subscription[] = [];
+  currentFile: { name: string; content: string; path: string } | null = null;
 
   constructor(
     private route: ActivatedRoute,
-    private projectService: ProjectService
+    private projectService: ProjectService,
+    private editorService: EditorService,
+    private runnerService: ProjectRunnerService
   ) {}
 
   ngOnInit() {
@@ -52,21 +65,47 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       this.projectService.loadProject(projectId);
       
       // Subscribe to project changes
-      this.subscription = this.projectService.getCurrentProject().subscribe(
-        project => {
-          this.project = project;
-          if (project) {
-            // Save project ID in localStorage
-            localStorage.setItem('currentProjectId', project.id);
+      this.subscriptions.push(
+        this.projectService.getCurrentProject().subscribe(
+          project => {
+            this.project = project;
+            if (project) {
+              // Save project ID in localStorage
+              localStorage.setItem('currentProjectId', project.id);
+            }
           }
-        }
+        )
+      );
+
+      // Subscribe to active file changes
+      this.subscriptions.push(
+        this.editorService.getActiveFile().subscribe(file => {
+          if (file) {
+            this.currentFile = {
+              name: file.name,
+              content: file.content,
+              path: file.path
+            };
+          } else {
+            this.currentFile = null;
+          }
+        })
+      );
+
+      // Subscribe to runner status
+      this.subscriptions.push(
+        this.runnerService.getStatus().subscribe(status => {
+          this.status = status;
+        })
       );
     }
   }
 
   ngOnDestroy() {
-    if (this.subscription) {
-      this.subscription.unsubscribe();
+    this.subscriptions.forEach(sub => sub.unsubscribe());
+    // Stop serving if active
+    if (this.status?.isServing) {
+      this.runnerService.stopServing();
     }
   }
 
@@ -74,23 +113,46 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     this.sidebarOpen = !this.sidebarOpen;
   }
 
+  toggleRightSidebar() {
+    this.rightSidebarOpen = !this.rightSidebarOpen;
+  }
+
+  async buildProject() {
+    if (this.project) {
+      try {
+        await this.runnerService.buildProject(this.project.id);
+      } catch (error) {
+        console.error('Error building project:', error);
+      }
+    }
+  }
+
   async serveProject() {
     if (this.project) {
       try {
-        await this.projectService.serveProject(this.project.id);
+        if (this.status?.isServing) {
+          this.runnerService.stopServing();
+        } else {
+          await this.runnerService.serveProject(this.project.id);
+        }
       } catch (error) {
         console.error('Error serving project:', error);
       }
     }
   }
 
-  async buildProject() {
-    if (this.project) {
-      try {
-        await this.projectService.buildProject(this.project.id);
-      } catch (error) {
-        console.error('Error building project:', error);
-      }
-    }
+  isPreviewableFile(): boolean {
+    if (!this.currentFile) return false;
+    const ext = this.currentFile.name.split('.').pop()?.toLowerCase() || '';
+    return [
+      'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg',
+      'pdf', 'mp4', 'webm', 'ogg', 'mp3', 'wav'
+    ].includes(ext);
+  }
+
+  shouldShowPreview(): boolean {
+    if (this.isPreviewableFile()) return true;
+    if (!this.status) return false;
+    return this.status.isServing && !!this.status.serveUrl;
   }
 } 

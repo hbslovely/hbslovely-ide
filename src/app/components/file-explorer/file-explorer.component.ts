@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MatTreeModule, MatTreeNestedDataSource } from '@angular/material/tree';
+import { MatTreeModule, MatTreeNestedDataSource, MatNestedTreeNode } from '@angular/material/tree';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { NestedTreeControl } from '@angular/cdk/tree';
@@ -15,6 +15,8 @@ interface FileNode {
   type: 'file' | 'directory';
   children?: FileNode[];
   isActive?: boolean;
+  parent?: FileNode;
+  level?: number;
 }
 
 @Component({
@@ -24,7 +26,8 @@ interface FileNode {
     CommonModule,
     MatTreeModule,
     MatIconModule,
-    MatButtonModule
+    MatButtonModule,
+    MatNestedTreeNode
   ],
   templateUrl: './file-explorer.component.html',
   styleUrls: ['./file-explorer.component.scss']
@@ -69,14 +72,38 @@ export class FileExplorerComponent implements OnInit, OnDestroy {
 
   hasChild = (_: number, node: FileNode) => node.type === 'directory' && !!node.children?.length;
 
-  transformFiles(files: ProjectFile[]): FileNode[] {
-    return files.map(file => ({
-      name: file.name,
-      path: file.path,
-      type: file.type,
-      children: file.children ? this.transformFiles(file.children) : undefined,
-      isActive: file.path === this.activeFilePath
-    }));
+  transformFiles(files: ProjectFile[], parent?: FileNode, level: number = 0): FileNode[] {
+    return files
+      .map(file => {
+        const node: FileNode = {
+          name: file.name,
+          path: file.path,
+          type: file.type,
+          isActive: file.path === this.activeFilePath,
+          parent,
+          level
+        };
+
+        if (file.children) {
+          node.children = this.transformFiles(file.children, node, level + 1)
+            .sort((a, b) => {
+              // Directories first, then files
+              if (a.type === 'directory' && b.type === 'file') return -1;
+              if (a.type === 'file' && b.type === 'directory') return 1;
+              // Then sort by name
+              return a.name.localeCompare(b.name);
+            });
+        }
+
+        return node;
+      })
+      .sort((a, b) => {
+        // Directories first, then files
+        if (a.type === 'directory' && b.type === 'file') return -1;
+        if (a.type === 'file' && b.type === 'directory') return 1;
+        // Then sort by name
+        return a.name.localeCompare(b.name);
+      });
   }
 
   async openFile(node: FileNode) {
@@ -163,6 +190,12 @@ export class FileExplorerComponent implements OnInit, OnDestroy {
         return 'icon-md';
       default:
         return '';
+    }
+  }
+
+  toggleNode(node: FileNode) {
+    if (node.type === 'directory') {
+      this.treeControl.toggle(node);
     }
   }
 }

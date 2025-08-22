@@ -1,0 +1,176 @@
+.projects-container {
+  padding: 24px;
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+  min-height: 100vh;
+}
+
+.projects-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+
+  h1 {
+    font-size: 24px;
+    font-weight: 300;
+    margin: 0;
+  }
+
+  button {
+    mat-icon {
+      margin-right: 8px;
+    }
+  }
+}
+
+.projects-content {
+  position: relative;
+  min-height: 400px;
+}
+
+.loading-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  text-align: center;
+
+  mat-icon {
+    font-size: 64px;
+    width: 64px;
+    height: 64px;
+    margin-bottom: 16px;
+    color: #666;
+  }
+
+  h2 {
+    font-size: 24px;
+    font-weight: 300;
+    margin: 0 0 8px;
+  }
+
+  p {
+    color: #666;
+    margin: 0 0 24px;
+  }
+
+  button {
+    mat-icon {
+      margin-right: 8px;
+    }
+  }
+}
+
+.projects-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
+}
+
+.project-card {
+  background-color: #252526;
+  border: 1px solid #333;
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+
+  &:hover {
+    transform: translateY(-4px);
+    border-color: #007acc;
+  }
+
+  mat-card-header {
+    padding: 16px;
+    border-bottom: 1px solid #333;
+    display: flex;
+    align-items: center;
+
+    mat-icon {
+      font-size: 24px;
+      width: 24px;
+      height: 24px;
+      margin-right: 16px;
+    }
+
+    mat-card-title {
+      color: #d4d4d4;
+      font-size: 18px;
+      margin: 0;
+    }
+
+    mat-card-subtitle {
+      color: #9e9e9e;
+      margin: 4px 0 0;
+    }
+  }
+
+  mat-card-content {
+    padding: 16px;
+    color: #d4d4d4;
+
+    p {
+      margin: 0 0 16px;
+      opacity: 0.8;
+    }
+
+    .project-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 12px;
+      color: #666;
+
+      span {
+        display: flex;
+        align-items: center;
+      }
+    }
+  }
+
+  mat-card-actions {
+    padding: 8px 16px;
+    border-top: 1px solid #333;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    button {
+      mat-icon {
+        margin-right: 8px;
+      }
+    }
+
+    .delete-button {
+      opacity: 0;
+      transition: opacity 0.2s ease;
+
+      mat-icon {
+        margin: 0;
+      }
+    }
+  }
+
+  &:hover {
+    .delete-button {
+      opacity: 1;
+    }
+  }
+}
+
+::ng-deep {
+  .mat-mdc-card {
+    --mdc-elevated-card-container-color: transparent;
+  }
+
+  .mat-spinner circle {
+    stroke: #007acc;
+  }
+} 

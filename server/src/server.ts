@@ -156,7 +156,7 @@ apiRouter.post('/solutions', async (req, res) => {
 });
 
 // Update project file
-apiRouter.put('/solutions/:id/files', async (req, res) => {
+apiRouter.put('/solutions/:id/file', async (req, res) => {
   try {
     const { id } = req.params;
     const { path: filePath, content } = req.body;
@@ -188,7 +188,7 @@ apiRouter.put('/solutions/:id/files', async (req, res) => {
 });
 
 // Get project file
-apiRouter.get('/solutions/:id/files', async (req, res) => {
+apiRouter.get('/solutions/:id/file', async (req, res) => {
   try {
     const { id } = req.params;
     const { path: filePath } = req.query;

@@ -40,15 +40,52 @@ mat-sidenav-container {
   border-right: 1px solid #333;
 }
 
+.preview-sidebar {
+  width: 400px;
+  background-color: #252526;
+  border-left: 1px solid #333;
+}
+
+mat-sidenav-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
 .editor-area {
-  height: calc(70% - 48px);
+  flex: 7;
   overflow: hidden;
 }
 
 .bottom-panel {
-  height: 30%;
+  flex: 3;
   background-color: #252526;
   border-top: 1px solid #333;
+}
+
+.serve-preview {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.output-panel {
+  height: 100%;
+  overflow: auto;
+  padding: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  background-color: #1e1e1e;
+}
+
+.output-line {
+  white-space: pre-wrap;
+  padding: 2px 0;
+  color: #d4d4d4;
+
+  &.error {
+    color: #f14c4c;
+  }
 }
 
 ::ng-deep {
@@ -99,5 +136,12 @@ mat-sidenav-container {
     width: 18px;
     height: 18px;
     margin-right: 4px;
+  }
+
+  .mat-mdc-progress-bar {
+    position: absolute;
+    top: 48px;
+    left: 0;
+    right: 0;
   }
 } 

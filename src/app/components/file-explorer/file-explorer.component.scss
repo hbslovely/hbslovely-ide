@@ -10,10 +10,11 @@
 }
 
 .mat-tree-node {
-  min-height: 32px;
+  min-height: 24px;
   cursor: pointer;
   color: #d4d4d4;
   position: relative;
+  padding-right: 8px;
 
   &:hover {
     background-color: #2a2d2e;
@@ -42,14 +43,28 @@
     height: 24px;
     line-height: 24px;
     color: #d4d4d4;
+    margin-right: -8px;
+
+    &[disabled] {
+      visibility: hidden;
+    }
   }
 
   .mat-icon {
     font-size: 16px;
     width: 16px;
     height: 16px;
-    margin-right: 8px;
+    margin-right: 4px;
     color: #d4d4d4;
+  }
+}
+
+.nested-tree {
+  display: none;
+  padding-left: 24px;
+
+  &.expanded {
+    display: block;
   }
 }
 
@@ -58,6 +73,10 @@
   font-family: 'JetBrains Mono', monospace;
   color: #cccccc;
   user-select: none;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* File type icons */
@@ -83,4 +102,37 @@
 
 .icon-md {
   color: #42a5f5 !important;
+}
+
+/* Indent guide lines */
+::ng-deep {
+  .mat-tree-node {
+    position: relative;
+
+    &::after {
+      content: '';
+      position: absolute;
+      left: 12px;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background-color: #404040;
+      opacity: 0.4;
+    }
+  }
+
+  .mat-nested-tree-node {
+    position: relative;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 12px;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background-color: #404040;
+      opacity: 0.4;
+    }
+  }
 }

@@ -10,6 +10,7 @@ import { API_CONFIG } from '../config/api.config';
 export class ProjectService {
   private apiUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.solutions}`;
   private currentProjectSubject = new BehaviorSubject<Project | null>(null);
+  private projectsSubject = new BehaviorSubject<Project[]>([]);
 
   constructor(private http: HttpClient) {
     // Load current project from localStorage
@@ -17,6 +18,8 @@ export class ProjectService {
     if (projectId) {
       this.loadProject(projectId);
     }
+    // Load initial project list
+    this.loadProjects();
   }
 
   getCurrentProject(): Observable<Project | null> {
@@ -25,6 +28,20 @@ export class ProjectService {
 
   getCurrentProjectValue(): Project | null {
     return this.currentProjectSubject.value;
+  }
+
+  getProjects(): Observable<Project[]> {
+    return this.projectsSubject.asObservable();
+  }
+
+  async loadProjects(): Promise<void> {
+    try {
+      const projects = await this.http.get<Project[]>(this.apiUrl).toPromise();
+      this.projectsSubject.next(projects || []);
+    } catch (error) {
+      console.error('Error loading projects:', error);
+      this.projectsSubject.next([]);
+    }
   }
 
   async loadProject(id: string): Promise<void> {
@@ -49,6 +66,9 @@ export class ProjectService {
     if (project) {
       this.currentProjectSubject.next(project);
       localStorage.setItem('currentProjectId', project.id);
+      // Update projects list
+      const currentProjects = this.projectsSubject.value;
+      this.projectsSubject.next([...currentProjects, project]);
     }
 
     return project!;
@@ -75,6 +95,9 @@ export class ProjectService {
       this.currentProjectSubject.next(null);
       localStorage.removeItem('currentProjectId');
     }
+    // Update projects list
+    const currentProjects = this.projectsSubject.value;
+    this.projectsSubject.next(currentProjects.filter(p => p.id !== id));
   }
 
   async serveProject(projectId: string): Promise<void> {

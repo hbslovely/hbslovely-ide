@@ -7,14 +7,20 @@
     <span class="project-name">{{ project?.name || 'Loading...' }}</span>
     <span class="spacer"></span>
     <button mat-flat-button color="primary" (click)="serveProject()">
-      <mat-icon>play_arrow</mat-icon>
-      Serve
+      <mat-icon>{{ status?.isServing ? 'stop' : 'play_arrow' }}</mat-icon>
+      {{ status?.isServing ? 'Stop' : 'Serve' }}
     </button>
-    <button mat-flat-button color="accent" (click)="buildProject()">
+    <button mat-flat-button color="accent" (click)="buildProject()" [disabled]="status?.isBuilding">
       <mat-icon>build</mat-icon>
       Build
     </button>
+    <button mat-icon-button (click)="toggleRightSidebar()">
+      <mat-icon>{{ rightSidebarOpen ? 'chevron_right' : 'chevron_left' }}</mat-icon>
+    </button>
   </mat-toolbar>
+
+  <!-- Build Progress -->
+  <mat-progress-bar *ngIf="status?.isBuilding" mode="indeterminate"></mat-progress-bar>
 
   <!-- Main Content -->
   <div class="project-content">
@@ -54,9 +60,53 @@
               </ng-template>
               <app-elements-inspector></app-elements-inspector>
             </mat-tab>
+            <mat-tab>
+              <ng-template mat-tab-label>
+                <mat-icon>build</mat-icon>
+                Build Output
+              </ng-template>
+              <div class="output-panel">
+                <ng-container *ngIf="status">
+                  <div *ngFor="let line of status.buildOutput" class="output-line">{{ line }}</div>
+                  <div *ngIf="status.buildError" class="output-line error">{{ status.buildError }}</div>
+                </ng-container>
+              </div>
+            </mat-tab>
+            <mat-tab>
+              <ng-template mat-tab-label>
+                <mat-icon>play_arrow</mat-icon>
+                Serve Output
+              </ng-template>
+              <div class="output-panel">
+                <ng-container *ngIf="status">
+                  <div *ngFor="let line of status.serveOutput" class="output-line">{{ line }}</div>
+                  <div *ngIf="status.serveError" class="output-line error">{{ status.serveError }}</div>
+                </ng-container>
+              </div>
+            </mat-tab>
           </mat-tab-group>
         </div>
       </mat-sidenav-content>
+
+      <!-- Right Sidebar -->
+      <mat-sidenav position="end" mode="side" [opened]="rightSidebarOpen" class="preview-sidebar" *ngIf="shouldShowPreview()">
+        <ng-container *ngIf="isPreviewableFile() && currentFile">
+          <app-preview
+            [fileName]="currentFile.name"
+            [fileContent]="currentFile.content"
+            [filePath]="currentFile.path"
+          ></app-preview>
+        </ng-container>
+        <ng-container *ngIf="status">
+          <ng-container *ngIf="status.isServing && status.serveUrl">
+            <iframe
+              [src]="status.serveUrl | safeUrl"
+              class="serve-preview"
+              frameborder="0"
+            ></iframe>
+          </ng-container>
+        </ng-container>
+      </mat-sidenav>
     </mat-sidenav-container>
   </div>
 </div> 

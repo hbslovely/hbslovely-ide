@@ -1,0 +1,56 @@
+<div class="projects-container">
+  <div class="projects-header">
+    <h1>My Projects</h1>
+    <button mat-raised-button color="primary" (click)="createProject()">
+      <mat-icon>add</mat-icon>
+      New Project
+    </button>
+  </div>
+
+  <div class="projects-content">
+    <!-- Loading spinner -->
+    <div class="loading-container" *ngIf="loading">
+      <mat-spinner diameter="40"></mat-spinner>
+    </div>
+
+    <!-- Empty state -->
+    <div class="empty-state" *ngIf="!loading && projects.length === 0">
+      <mat-icon>folder_open</mat-icon>
+      <h2>No Projects Yet</h2>
+      <p>Create your first project to get started</p>
+      <button mat-raised-button color="primary" (click)="createProject()">
+        <mat-icon>add</mat-icon>
+        Create Project
+      </button>
+    </div>
+
+    <!-- Projects grid -->
+    <div class="projects-grid" *ngIf="!loading && projects.length > 0">
+      <mat-card *ngFor="let project of projects" class="project-card" (click)="openProject(project)">
+        <mat-card-header>
+          <mat-icon [style.color]="getProjectColor(project.template)">
+            {{ getProjectIcon(project.template) }}
+          </mat-icon>
+          <mat-card-title>{{ project.name }}</mat-card-title>
+          <mat-card-subtitle>{{ project.template | titlecase }}</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <p>{{ project.description || 'No description' }}</p>
+          <div class="project-meta">
+            <span class="created-at">Created {{ project.createdAt | date:'mediumDate' }}</span>
+            <span class="updated-at">Updated {{ project.updatedAt | date:'mediumDate' }}</span>
+          </div>
+        </mat-card-content>
+        <mat-card-actions>
+          <button mat-button color="primary">
+            <mat-icon>open_in_new</mat-icon>
+            Open
+          </button>
+          <button mat-icon-button color="warn" class="delete-button" (click)="deleteProject($event, project)">
+            <mat-icon>delete</mat-icon>
+          </button>
+        </mat-card-actions>
+      </mat-card>
+    </div>
+  </div>
+</div> 

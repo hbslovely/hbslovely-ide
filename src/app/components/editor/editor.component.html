@@ -1,26 +1,70 @@
 <div class="editor-wrapper">
   <!-- Tabs -->
-  <mat-tab-group
-    [selectedIndex]="selectedTabIndex"
-    (selectedIndexChange)="onTabChange($event)"
-    class="editor-tabs"
-  >
-    <mat-tab *ngFor="let file of openedFiles; let i = index">
-      <ng-template mat-tab-label>
-        <div class="tab-label" [class.dirty]="file.isDirty">
-          <div class="tab-content">
-            <mat-icon class="file-icon" [class]="getFileIconClass(file.name)">
-              {{ getFileIcon(file.name) }}
-            </mat-icon>
-            <span class="file-name">{{ file.name }}</span>
+  <div class="editor-header">
+    <mat-tab-group
+      [selectedIndex]="selectedTabIndex"
+      (selectedIndexChange)="onTabChange($event)"
+      class="editor-tabs"
+    >
+      <mat-tab *ngFor="let file of openedFiles; let i = index">
+        <ng-template mat-tab-label>
+          <div class="tab-label" [class.dirty]="file.isDirty" [class.saving]="file.isSaving">
+            <div class="tab-content">
+              <mat-icon class="file-icon" [class]="getFileIconClass(file.name)">
+                {{ getFileIcon(file.name) }}
+              </mat-icon>
+              <span class="file-name">{{ file.name }}</span>
+            </div>
+            <button mat-icon-button class="close-button" (click)="closeTab(file.id, $event)">
+              <mat-icon>close</mat-icon>
+            </button>
           </div>
-          <button mat-icon-button class="close-button" (click)="closeTab(file.id, $event)">
-            <mat-icon>close</mat-icon>
-          </button>
+        </ng-template>
+      </mat-tab>
+    </mat-tab-group>
+
+    <!-- Editor Controls -->
+    <div class="editor-controls">
+      <button mat-icon-button [matMenuTriggerFor]="menu" class="settings-button">
+        <mat-icon>settings</mat-icon>
+      </button>
+      <mat-menu #menu="matMenu" class="editor-menu">
+        <div class="menu-item" (click)="$event.stopPropagation()">
+          <mat-slide-toggle
+            [checked]="config.autoSave"
+            (change)="toggleAutoSave()"
+          >
+            Auto Save
+          </mat-slide-toggle>
         </div>
-      </ng-template>
-    </mat-tab>
-  </mat-tab-group>
+        <div class="menu-item" (click)="$event.stopPropagation()">
+          <mat-slide-toggle
+            [checked]="config.autoComplete"
+            (change)="toggleAutoComplete()"
+          >
+            Auto Complete
+          </mat-slide-toggle>
+        </div>
+        <mat-divider></mat-divider>
+        <button mat-menu-item (click)="saveCurrentFile()">
+          <mat-icon>save</mat-icon>
+          <span>Save</span>
+          <span class="shortcut">⌘S</span>
+        </button>
+        <button mat-menu-item (click)="saveAllFiles()">
+          <mat-icon>save_all</mat-icon>
+          <span>Save All</span>
+          <span class="shortcut">⌘⇧S</span>
+        </button>
+        <mat-divider></mat-divider>
+        <button mat-menu-item (click)="formatDocument()">
+          <mat-icon>format_align_left</mat-icon>
+          <span>Format Document</span>
+          <span class="shortcut">⌘⇧F</span>
+        </button>
+      </mat-menu>
+    </div>
+  </div>
 
   <!-- Editor Container -->
   <div #editorContainer class="editor-container"></div>

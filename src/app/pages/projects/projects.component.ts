@@ -1,13 +1,15 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatDialog } from '@angular/material/dialog';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ProjectCreatorComponent } from '../../components/project-creator/project-creator.component';
 import { ProjectService } from '../../services/project.service';
 import { Project } from '../../models/project.model';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-projects',
@@ -16,139 +18,97 @@ import { Project } from '../../models/project.model';
     CommonModule,
     MatCardModule,
     MatButtonModule,
-    MatIconModule
+    MatIconModule,
+    MatDialogModule,
+    MatProgressSpinnerModule,
+    ProjectCreatorComponent
   ],
-  template: `
-    <div class="projects-container">
-      <div class="projects-header">
-        <h1>My Projects</h1>
-        <button mat-raised-button color="primary" (click)="createProject()">
-          <mat-icon>add</mat-icon>
-          New Project
-        </button>
-      </div>
-
-      <div class="projects-grid">
-        <mat-card *ngFor="let project of projects" class="project-card" (click)="openProject(project)">
-          <mat-card-header>
-            <mat-card-title>{{ project.name }}</mat-card-title>
-            <mat-card-subtitle>{{ project.template | titlecase }}</mat-card-subtitle>
-          </mat-card-header>
-          <mat-card-content>
-            <p>{{ project.description || 'No description' }}</p>
-          </mat-card-content>
-          <mat-card-actions>
-            <button mat-button color="primary">Open</button>
-          </mat-card-actions>
-        </mat-card>
-      </div>
-    </div>
-  `,
-  styles: [`
-    .projects-container {
-      padding: 24px;
-      background-color: #1e1e1e;
-      color: #d4d4d4;
-      min-height: 100vh;
-    }
-
-    .projects-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 24px;
-
-      h1 {
-        font-size: 24px;
-        font-weight: 300;
-        margin: 0;
-      }
-
-      button {
-        mat-icon {
-          margin-right: 8px;
-        }
-      }
-    }
-
-    .projects-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 24px;
-    }
-
-    .project-card {
-      background-color: #252526;
-      border: 1px solid #333;
-      cursor: pointer;
-      transition: transform 0.2s ease;
-
-      &:hover {
-        transform: translateY(-4px);
-      }
-
-      mat-card-title {
-        color: #d4d4d4;
-        font-size: 18px;
-      }
-
-      mat-card-subtitle {
-        color: #9e9e9e;
-      }
-
-      mat-card-content {
-        color: #d4d4d4;
-        opacity: 0.8;
-        margin: 16px 0;
-      }
-
-      mat-card-actions {
-        padding: 8px;
-        border-top: 1px solid #333;
-      }
-    }
-  `]
+  templateUrl: './projects.component.html',
+  styleUrls: ['./projects.component.scss']
 })
-export class ProjectsComponent implements OnInit {
+export class ProjectsComponent implements OnInit, OnDestroy {
   projects: Project[] = [];
+  loading = true;
+  private subscription?: Subscription;
 
   constructor(
+    private projectService: ProjectService,
     private dialog: MatDialog,
-    private router: Router,
-    private projectService: ProjectService
+    private router: Router
   ) {}
 
   ngOnInit() {
-    // TODO: Load projects from service
-    // For now, we'll use sample data
-    this.projects = [
-      {
-        id: 'cfaf2190-1046-4e91-af1e-0bfea70c350e',
-        name: 'Sample Project',
-        description: 'A sample Angular project',
-        template: 'angular',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        files: []
+    this.subscription = this.projectService.getProjects().subscribe(
+      projects => {
+        this.projects = projects;
+        this.loading = false;
       }
-    ];
+    );
   }
 
-  createProject() {
+  ngOnDestroy() {
+    if (this.subscription) {
+      this.subscription.unsubscribe();
+    }
+  }
+
+  getProjectIcon(template: string): string {
+    switch (template) {
+      case 'angular':
+        return 'code';
+      case 'react':
+        return 'web';
+      default:
+        return 'folder';
+    }
+  }
+
+  getProjectColor(template: string): string {
+    switch (template) {
+      case 'angular':
+        return '#dd0031';
+      case 'react':
+        return '#61dafb';
+      default:
+        return '#757575';
+    }
+  }
+
+  async createProject() {
     const dialogRef = this.dialog.open(ProjectCreatorComponent, {
-      width: '600px',
+      width: '500px',
       disableClose: true
     });
 
-    dialogRef.afterClosed().subscribe(result => {
-      if (result) {
-        // Refresh projects list
-        // TODO: Implement this when we have the API
+    const result = await dialogRef.afterClosed().toPromise();
+    if (result) {
+      this.loading = true;
+      try {
+        const project = await this.projectService.createProject(
+          result.name,
+          result.description,
+          result.template
+        );
+        await this.router.navigate(['/solution', project.id]);
+      } catch (error) {
+        console.error('Error creating project:', error);
+        this.loading = false;
       }
-    });
+    }
   }
 
-  openProject(project: Project) {
-    this.router.navigate(['/solution', project.id]);
+  async openProject(project: Project) {
+    await this.router.navigate(['/solution', project.id]);
+  }
+
+  async deleteProject(event: Event, project: Project) {
+    event.stopPropagation();
+    if (confirm(`Are you sure you want to delete ${project.name}?`)) {
+      try {
+        await this.projectService.deleteProject(project.id);
+      } catch (error) {
+        console.error('Error deleting project:', error);
+      }
+    }
   }
 } 
